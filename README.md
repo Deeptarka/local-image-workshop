@@ -2,6 +2,26 @@
 
 Local Workshop is a private, desktop-first creative suite for locally hosted image and prompt models. It connects a browser interface to ComfyUI and Ollama without authentication, a database, or cloud storage.
 
+## Preview
+
+### The Workshop Directory
+
+![Local Workshop utility cards](./screenshot/screenshot-home-page.png)
+
+Five focused utilities share one persistent, configurable navigation rail.
+
+### Homepage Identity
+
+![Local Workshop homepage heading](./screenshot/screenshot-choose-your-bench.png)
+
+The interface uses a restrained paper-white and coffee palette designed for a wide desktop workspace.
+
+### Local Prompt Builder
+
+![Prompt Builder generating a detailed image prompt with Ollama](./screenshot/screenshot-prompt-builder.png)
+
+Prompt Builder expands a short idea with the configured local Ollama model and provides an explicit clipboard action.
+
 ## Utilities
 
 | Utility | Purpose | Local workflow |
@@ -52,10 +72,10 @@ The Settings page manages only these allow-listed values:
 | `COMFYUI_URL` | `http://127.0.0.1:8188` | Local ComfyUI API |
 | `OLLAMA_URL` | `http://127.0.0.1:11434` | Local Ollama API |
 | `OLLAMA_MODEL` | `qwen3.5:0.8b` | Prompt Builder model |
-| `LLM_SYSTEM_PROMPT` | Included example | Prompt expansion instruction |
+| `LLM_SYSTEM_PROMPT` | Built-in default | Prompt expansion instruction |
 | `UTILITY_ORDER` | All five utilities | Sidebar and homepage ordering |
 
-`.env` is ignored by Git. Model filenames and workflow-specific output prefixes are defined inside their utilities rather than global Settings.
+`.env` is ignored by Git. The Prompt Builder instruction can be changed and saved from Settings; no separate prompt Markdown file is required. Model filenames and workflow-specific output prefixes are defined inside their utilities rather than global Settings.
 
 ## Data Flow
 

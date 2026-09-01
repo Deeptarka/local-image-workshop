@@ -45,7 +45,7 @@ ollama pull qwen3.5:0.8b
 ollama serve
 ```
 
-If you later install a different model, update `OLLAMA_MODEL` in Settings. The Prompt Builder system instruction is also editable there.
+If you later install a different model, update `OLLAMA_MODEL` in Settings. The Prompt Builder system instruction is also editable there and is persisted to `.env`; `image-enhancement-prompt.md` is not required.
 
 ## 5. Install ComfyUI Models
 

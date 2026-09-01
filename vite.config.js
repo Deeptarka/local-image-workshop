@@ -4,12 +4,12 @@ import { readFile, rename, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 const ENV_PATH = path.resolve('.env')
-const PROMPT_PATH = path.resolve('image-enhancement-prompt.md')
+const DEFAULT_SYSTEM_PROMPT = "You are an expert prompt writer for FLUX image-generation models. Convert the user's request into one polished, precise, visually descriptive prompt. Preserve the user's intent, describe only what should be visible, add reasonable visual detail where needed, avoid keyword spam and repetition, and output no explanations or headings."
 const DEFAULTS = {
   COMFYUI_URL: 'http://127.0.0.1:8188',
   OLLAMA_URL: 'http://127.0.0.1:11434',
   OLLAMA_MODEL: 'qwen3.5:0.8b',
-  LLM_SYSTEM_PROMPT: '',
+  LLM_SYSTEM_PROMPT: DEFAULT_SYSTEM_PROMPT,
   UTILITY_ORDER: 'darkroom,print,prompt-builder,upscaler,anime'
 }
 const ALLOWED_KEYS = Object.keys(DEFAULTS)
@@ -28,14 +28,13 @@ function parseEnv(source = '') {
 }
 
 async function loadSettings() {
-  const defaults = { ...DEFAULTS, LLM_SYSTEM_PROMPT: (await readFile(PROMPT_PATH, 'utf8')).trim() }
-  try { runtimeSettings = { ...defaults, ...parseEnv(await readFile(ENV_PATH, 'utf8')) } }
-  catch { runtimeSettings = defaults }
+  try { runtimeSettings = { ...DEFAULTS, ...parseEnv(await readFile(ENV_PATH, 'utf8')) } }
+  catch { runtimeSettings = { ...DEFAULTS } }
   return runtimeSettings
 }
 
 async function saveSettings(next) {
-  const clean = { ...DEFAULTS, LLM_SYSTEM_PROMPT: (await readFile(PROMPT_PATH, 'utf8')).trim() }
+  const clean = { ...DEFAULTS }
   for (const key of ALLOWED_KEYS) if (typeof next[key] === 'string' && next[key].trim()) clean[key] = next[key].trim()
   new URL(clean.COMFYUI_URL); new URL(clean.OLLAMA_URL)
   const validUtilities = ['darkroom', 'print', 'prompt-builder', 'upscaler', 'anime']
