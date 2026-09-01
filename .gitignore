@@ -1,0 +1,11 @@
+.env
+.env.tmp
+dist/
+node_modules/
+.pnpm-store/
+premium-audit.json
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
