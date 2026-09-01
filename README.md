@@ -10,12 +10,6 @@ Local Workshop is a private, desktop-first creative suite for locally hosted ima
 
 Five focused utilities share one persistent, configurable navigation rail.
 
-### Homepage Identity
-
-![Local Workshop homepage heading](./screenshot/screenshot-choose-your-bench.png)
-
-The interface uses a restrained paper-white and coffee palette designed for a wide desktop workspace.
-
 ### Local Prompt Builder
 
 ![Prompt Builder generating a detailed image prompt with Ollama](./screenshot/screenshot-prompt-builder.png)
