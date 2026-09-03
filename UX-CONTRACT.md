@@ -9,10 +9,11 @@ The Workshop shell opens on Home and owns navigation between Home, Darkroom, Pri
 | Scrollbar | Global application stylesheet | `DESIGN.md` | geometry only | computed style |
 | Settings | Allow-listed environment form | `vite.config.js` | local create/edit | API readback |
 | Clipboard | Prompt Builder copy button | `src/main.jsx` | explicit copy | browser interaction |
+| Progress | Shared estimated progress component | `src/main.jsx` | workflow duration | browser workflow |
 
 ## Async flow
 
-`Generate Image` → disabled busy state → ComfyUI queue submission → bounded history polling → preview and download on success, or persistent inline recovery guidance on failure. Duplicate submission is blocked while a job is pending. Model/runtime readiness is always shown in a live region immediately beneath the utility's primary generate/build button rather than in the masthead.
+`Generate Image` → disabled busy state → ComfyUI queue submission → bounded history polling → preview and download on success, or persistent inline recovery guidance on failure. While pending, image utilities show a workflow-specific estimated progress bar capped below completion until ComfyUI confirms output; the upscaler identifies its upload and refinement phases. Duplicate submission is blocked while a job is pending. Model/runtime readiness is always shown in a live region immediately beneath the utility's primary generate/build button rather than in the masthead.
 
 ## Model readiness
 
@@ -32,7 +33,7 @@ Print Studio uses an independent FLUX.2 Klein 4B Distilled API graph with Klein'
 
 ## Prompt Builder
 
-Prompt Builder sends the user's one-line idea to the configured local Ollama chat endpoint with the allow-listed system instruction. On desktop its build action occupies the left half of the workspace and the generated prompt follows beneath at full two-column width; narrow screens preserve source order. It returns only the generated prompt, preserves the previous successful result when a later request fails, blocks duplicate submission while pending, and writes to the clipboard only after the user chooses Copy prompt.
+Prompt Builder loads its selectable recipes from Markdown files named by `PROMPT_PRESETS`, then sends the user's one-line idea and selected recipe to the configured local Ollama chat endpoint. On desktop its build action occupies the left half of the workspace and the generated prompt follows beneath at full two-column width; narrow screens preserve source order. It returns only the generated prompt, preserves the previous successful result when a later request fails, blocks duplicate submission while pending, and writes to the clipboard only after the user chooses Copy prompt.
 
 ## Image Upscaler
 
@@ -44,4 +45,4 @@ Anime Maker follows the official `text_to_image_anima_base_1_0` blueprint with A
 
 ## Environment settings
 
-Settings reads and writes only `COMFYUI_URL`, `OLLAMA_URL`, `OLLAMA_MODEL`, `LLM_SYSTEM_PROMPT`, and `UTILITY_ORDER`, as declared in `.env.example`. The sorter normalizes missing, duplicate, or unknown utility identifiers before persistence. Its reset action discards unsaved edits and reloads the last applied values. Model filenames, VAEs, and output prefixes remain owned and documented by their individual utilities. Saving is atomic, applies immediately to the local proxies, navigation, homepage cards, and subsequent generation requests, preserves the value on failure, and never exposes arbitrary process environment variables.
+Settings reads and writes only `COMFYUI_URL`, `OLLAMA_URL`, `OLLAMA_MODEL`, `PROMPT_PRESETS`, and `UTILITY_ORDER`, as declared in `.env.example`. Prompt recipe names remain environment-owned but their full instructions live in the project `prompts` folder and are intentionally absent from Settings. The sorter normalizes missing, duplicate, or unknown utility identifiers before persistence. Its reset action discards unsaved edits and reloads the last applied values. Model filenames, VAEs, and output prefixes remain owned and documented by their individual utilities. Saving is atomic, applies immediately to the local proxies, navigation, homepage cards, and subsequent generation requests, preserves the value on failure, and never exposes arbitrary process environment variables.

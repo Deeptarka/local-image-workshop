@@ -45,7 +45,9 @@ ollama pull qwen3.5:0.8b
 ollama serve
 ```
 
-If you later install a different model, update `OLLAMA_MODEL` in Settings. The Prompt Builder system instruction is also editable there and is persisted to `.env`; `image-enhancement-prompt.md` is not required.
+If you later install a different model, update `OLLAMA_MODEL` in Settings. Prompt Builder recipes are Markdown files in the `prompts` folder; list their filenames in the comma-separated `PROMPT_PRESETS` value in `.env`.
+
+The filename list accepts names containing letters, numbers, and hyphens with a `.md` extension. Recipe files must stay directly inside `prompts`; nested paths are rejected. Restart the development or preview server after changing the environment file.
 
 ## 5. Install ComfyUI Models
 

@@ -681,3 +681,41 @@ input[type="range"],
     grid-template-columns: minmax(0, 330px);
   }
 }
+
+.control-hint {
+  color: var(--muted);
+  font: 400 10px Arial, sans-serif;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.generation-progress {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  display: grid;
+  gap: 7px;
+  padding: 11px 12px;
+}
+
+.progress-copy {
+  color: var(--ink);
+  display: flex;
+  font: 11px Consolas, monospace;
+  justify-content: space-between;
+}
+
+.generation-progress progress {
+  accent-color: var(--signal);
+  background: var(--line);
+  border: 0;
+  border-radius: 8px;
+  height: 8px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.generation-progress progress::-webkit-progress-bar { background: var(--line); }
+.generation-progress progress::-webkit-progress-value { background: var(--signal); transition: width .5s ease; }
+.generation-progress progress::-moz-progress-bar { background: var(--signal); }
+.generation-progress small { color: var(--muted); font-size: 10px; line-height: 1.35; }

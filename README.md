@@ -37,6 +37,8 @@ The utility rail and homepage cards share a configurable order. Each utility kee
 - Optional Z-Image-compatible LoRA selection
 - Model readiness checks and direct model download guidance
 - Browser previews and direct PNG downloads
+- Workflow-specific estimated progress while ComfyUI jobs run
+- File-backed Prompt Builder recipes for animation, realistic, and vector-print prompts
 - No application database, user accounts, or backend image archive
 - Editable API-format workflow copies in [`workflows`](./workflows)
 
@@ -66,10 +68,10 @@ The Settings page manages only these allow-listed values:
 | `COMFYUI_URL` | `http://127.0.0.1:8188` | Local ComfyUI API |
 | `OLLAMA_URL` | `http://127.0.0.1:11434` | Local Ollama API |
 | `OLLAMA_MODEL` | `qwen3.5:0.8b` | Prompt Builder model |
-| `LLM_SYSTEM_PROMPT` | Built-in default | Prompt expansion instruction |
+| `PROMPT_PRESETS` | Three bundled Markdown files | Comma-separated prompt recipes exposed in Prompt Builder |
 | `UTILITY_ORDER` | All five utilities | Sidebar and homepage ordering |
 
-`.env` is ignored by Git. The Prompt Builder instruction can be changed and saved from Settings; no separate prompt Markdown file is required. Model filenames and workflow-specific output prefixes are defined inside their utilities rather than global Settings.
+`.env` is ignored by Git. Prompt Builder instructions live in the `prompts` folder; add a Markdown file there and include its filename in `PROMPT_PRESETS` to expose it in the recipe dropdown. The Settings screen intentionally does not edit these instructions. Model filenames and workflow-specific output prefixes are defined inside their utilities rather than global Settings.
 
 ## Data Flow
 
@@ -80,6 +82,20 @@ Browser
 ```
 
 Vite proxies both connections so the browser can use the local services without separate CORS configuration. Source images selected for upscaling are uploaded to ComfyUI's normal input folder. Generated images remain in ComfyUI's output folder; the application retains only browser-session state.
+
+## Prompt Recipes
+
+Prompt Builder reads its available recipes from `PROMPT_PRESETS` in `.env`. Each entry must be a safe Markdown filename stored in the project `prompts` directory. The bundled recipes are:
+
+- `animation-image.md`
+- `realistic-image.md`
+- `vector-print.md`
+
+To add a recipe, create another `.md` file in that directory and append its filename to `PROMPT_PRESETS`. Restart the Vite server after changing `.env`. Recipe contents are deliberately not editable from Settings.
+
+## Generation Progress
+
+ComfyUI's polled history response confirms finished output but does not expose live sampler-step completion in this integration. The interface therefore labels progress as estimated, varies timing by utility and step count, and never reaches 100% until ComfyUI confirms the generated image.
 
 ## Workflow Files
 

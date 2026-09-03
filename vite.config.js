@@ -4,12 +4,13 @@ import { readFile, rename, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 const ENV_PATH = path.resolve('.env')
-const DEFAULT_SYSTEM_PROMPT = "You are an expert prompt writer for FLUX image-generation models. Convert the user's request into one polished, precise, visually descriptive prompt. Preserve the user's intent, describe only what should be visible, add reasonable visual detail where needed, avoid keyword spam and repetition, and output no explanations or headings."
+const PROMPT_DIRECTORY = path.resolve('prompts')
+const DEFAULT_PROMPT_PRESETS = 'animation-image.md,realistic-image.md,vector-print.md'
 const DEFAULTS = {
   COMFYUI_URL: 'http://127.0.0.1:8188',
   OLLAMA_URL: 'http://127.0.0.1:11434',
   OLLAMA_MODEL: 'qwen3.5:0.8b',
-  LLM_SYSTEM_PROMPT: DEFAULT_SYSTEM_PROMPT,
+  PROMPT_PRESETS: DEFAULT_PROMPT_PRESETS,
   UTILITY_ORDER: 'darkroom,print,prompt-builder,upscaler,anime'
 }
 const ALLOWED_KEYS = Object.keys(DEFAULTS)
@@ -31,6 +32,17 @@ async function loadSettings() {
   try { runtimeSettings = { ...DEFAULTS, ...parseEnv(await readFile(ENV_PATH, 'utf8')) } }
   catch { runtimeSettings = { ...DEFAULTS } }
   return runtimeSettings
+}
+
+function configuredPromptFiles() {
+  return runtimeSettings.PROMPT_PRESETS.split(',').map(name => name.trim()).filter(name => /^[a-z0-9][a-z0-9-]*\.md$/i.test(name))
+}
+
+async function loadPromptPreset(name) {
+  if (!configuredPromptFiles().includes(name)) throw new Error('Unknown prompt preset.')
+  const content = (await readFile(path.join(PROMPT_DIRECTORY, name), 'utf8')).trim()
+  if (!content) throw new Error(`Prompt preset ${name} is empty.`)
+  return content
 }
 
 async function saveSettings(next) {
@@ -83,6 +95,17 @@ function localTransport() {
       } catch (error) { return sendJson(res, 200, { ready: false, status: `Ollama unavailable · ${error.message}` }) }
     })
 
+    server.middlewares.use('/api/prompt-presets', async (req, res) => {
+      if (req.method !== 'GET') return sendJson(res, 405, { error: 'Method not allowed' })
+      try {
+        const presets = await Promise.all(configuredPromptFiles().map(async name => {
+          await loadPromptPreset(name)
+          return { id: name, label: name.replace(/\.md$/i, '').split('-').map(word => word[0].toUpperCase() + word.slice(1)).join(' ') }
+        }))
+        return sendJson(res, 200, { presets })
+      } catch (error) { return sendJson(res, 500, { error: `Could not load prompt presets: ${error.message}` }) }
+    })
+
     server.middlewares.use('/api/expand-prompt', async (req, res) => {
       if (req.method !== 'POST') return sendJson(res, 405, { error: 'Method not allowed' })
       try {
@@ -90,10 +113,11 @@ function localTransport() {
         const idea = typeof payload.idea === 'string' ? payload.idea.trim() : ''
         if (!idea) return sendJson(res, 400, { error: 'Enter a one-line image idea first.' })
         if (idea.length > 1000) return sendJson(res, 400, { error: 'Keep the starting idea under 1,000 characters.' })
+        const systemPrompt = await loadPromptPreset(payload.preset)
         const upstream = await fetch(`${runtimeSettings.OLLAMA_URL.replace(/\/$/, '')}/api/chat`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ model: runtimeSettings.OLLAMA_MODEL, stream: false, think: false, messages: [{ role: 'system', content: runtimeSettings.LLM_SYSTEM_PROMPT }, { role: 'user', content: idea }], options: { temperature: 0.7 } }),
+          body: JSON.stringify({ model: runtimeSettings.OLLAMA_MODEL, stream: false, think: false, messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: idea }], options: { temperature: 0.7 } }),
           signal: AbortSignal.timeout(120000)
         })
         const result = await upstream.json().catch(() => ({}))
