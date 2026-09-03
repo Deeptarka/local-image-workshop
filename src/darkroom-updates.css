@@ -719,3 +719,45 @@ input[type="range"],
 .generation-progress progress::-webkit-progress-value { background: var(--signal); transition: width .5s ease; }
 .generation-progress progress::-moz-progress-bar { background: var(--signal); }
 .generation-progress small { color: var(--muted); font-size: 10px; line-height: 1.35; }
+
+.mockup-canvas-wrap {
+  background: #dedbd1;
+  border: 1px solid var(--ink);
+  display: grid;
+  min-height: 420px;
+  overflow: hidden;
+  place-items: center;
+}
+
+.mockup-canvas-wrap canvas {
+  cursor: grab;
+  display: block;
+  height: auto;
+  max-height: calc(100vh - 150px);
+  max-width: 100%;
+  touch-action: none;
+  width: auto;
+}
+
+.mockup-canvas-wrap canvas:active { cursor: grabbing; }
+
+.shirt-color-row {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-top: 16px;
+}
+
+.shirt-color-row input[type="color"] {
+  cursor: pointer;
+  height: 38px;
+  padding: 3px;
+  width: 64px;
+}
+
+.shirt-color-row input[type="color"]:disabled { cursor: default; opacity: .4; }
+
+@media (max-width: 800px) {
+  .mockup-canvas-wrap { min-height: 300px; }
+  .mockup-canvas-wrap canvas { max-height: none; width: 100%; }
+}

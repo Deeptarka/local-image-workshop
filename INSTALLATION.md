@@ -71,6 +71,8 @@ Optional compatible LoRAs belong in `models/loras`.
 | `qwen_3_4b.safetensors` | `models/text_encoders` |
 | `flux2-vae.safetensors` | `models/vae` |
 
+Print Enhancer reuses this exact three-file set for single-reference image editing. It does not require another diffusion model, encoder, VAE, or custom node. Update ComfyUI if the core `ReferenceLatent` or `GetImageSize` nodes are unavailable.
+
 The Qwen text encoder can be shared with Darkroom.
 
 ### Image Upscaler

@@ -8,7 +8,7 @@ Local Workshop is a private, desktop-first creative suite for locally hosted ima
 
 ![Local Workshop utility cards](./screenshot/screenshot-home-page.png)
 
-Five focused utilities share one persistent, configurable navigation rail.
+Seven focused utilities share one persistent, configurable navigation rail.
 
 ### Local Prompt Builder
 
@@ -22,6 +22,8 @@ Prompt Builder expands a short idea with the configured local Ollama model and p
 |---|---|---|
 | Darkroom | General text-to-image work with framing, negative prompting, and optional LoRAs | Z-Image Turbo |
 | Print Studio | Lettering-aware artwork intended for T-shirt prints | FLUX.2 Klein 4B Distilled |
+| Print Enhancer | Edits or enhances uploaded artwork from a written change request | FLUX.2 Klein 4B Distilled image edit |
+| Mockup Bench | Places uploaded artwork onto a model photo with live positioning and optional shirt tinting | Browser canvas; no model required |
 | Prompt Builder | Expands a one-line idea into a detailed image prompt with clipboard copying | Ollama and Qwen 3.5 |
 | Image Upscaler | Enlarges an existing image and restores/refines detail | Real-ESRGAN 4× and Z-Image Turbo |
 | Anime Maker | Anime-focused character and environment generation | Anima Base 1.0 |
@@ -69,7 +71,7 @@ The Settings page manages only these allow-listed values:
 | `OLLAMA_URL` | `http://127.0.0.1:11434` | Local Ollama API |
 | `OLLAMA_MODEL` | `qwen3.5:0.8b` | Prompt Builder model |
 | `PROMPT_PRESETS` | Three bundled Markdown files | Comma-separated prompt recipes exposed in Prompt Builder |
-| `UTILITY_ORDER` | All five utilities | Sidebar and homepage ordering |
+| `UTILITY_ORDER` | All seven utilities | Sidebar and homepage ordering |
 
 `.env` is ignored by Git. Prompt Builder instructions live in the `prompts` folder; add a Markdown file there and include its filename in `PROMPT_PRESETS` to expose it in the recipe dropdown. The Settings screen intentionally does not edit these instructions. Model filenames and workflow-specific output prefixes are defined inside their utilities rather than global Settings.
 
@@ -81,7 +83,7 @@ Browser
   └─ /ollama → local Ollama API
 ```
 
-Vite proxies both connections so the browser can use the local services without separate CORS configuration. Source images selected for upscaling are uploaded to ComfyUI's normal input folder. Generated images remain in ComfyUI's output folder; the application retains only browser-session state.
+Vite proxies both connections so the browser can use the local services without separate CORS configuration. Source images selected for upscaling or reference enhancement are uploaded to ComfyUI's normal input folder. Generated images remain in ComfyUI's output folder; the application retains only browser-session state.
 
 ## Prompt Recipes
 
@@ -97,10 +99,24 @@ To add a recipe, create another `.md` file in that directory and append its file
 
 ComfyUI's polled history response confirms finished output but does not expose live sampler-step completion in this integration. The interface therefore labels progress as estimated, varies timing by utility and step count, and never reaches 100% until ComfyUI confirms the generated image.
 
+## Building a Shirt Mockup
+
+Mockup Bench performs the entire composition in the browser and does not upload either image to ComfyUI:
+
+1. Load a model photograph with a clearly visible shirt.
+2. Load the design artwork. A transparent PNG provides the cleanest edges.
+3. Drag the design on the preview or use the position, size, rotation, opacity, and blend controls.
+4. Use Multiply to reveal folds on light shirts, Normal to preserve exact artwork colors, or Screen for light artwork on dark shirts.
+5. Optionally enable shirt tint and adjust its rounded mask so it stays within the garment.
+6. Export the finished composition as a PNG.
+
+Shirt tinting is a manual color mask rather than automatic garment segmentation. Complex poses, sleeves, or partially hidden shirts may need a generated model image in the desired color for the cleanest production result.
+
 ## Workflow Files
 
 - `image_z_image_turbo_darkroom.api.json`
 - `flux2_klein_print_studio.api.json`
+- `image_flux2_klein_print_enhancer.api.json`
 - `image_upscale_z_image_turbo_workshop.api.json`
 - `image_anima_base_workshop.api.json`
 

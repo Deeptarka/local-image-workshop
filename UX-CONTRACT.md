@@ -31,6 +31,14 @@ Positive and negative prompts are encoded separately. The UI labels negative pro
 
 Print Studio uses an independent FLUX.2 Klein 4B Distilled API graph with Klein's Flux2 latent, scheduler, CFG guider, Euler sampler, and four-step default. The user's prompt is automatically wrapped with exact-lettering, limited-palette, isolated-artwork, and no-mockup constraints. Tuning exposes treatment, ink count, format, steps, guidance, and seed. It does not modify or reuse Darkroom's workflow.
 
+## Print Enhancer
+
+Print Enhancer is a separate single-reference image-edit utility based on the official FLUX.2 Klein 4B Distilled edit workflow. It uploads one PNG, JPEG, or WebP source to local ComfyUI, scales it to one megapixel, encodes it as reference conditioning, and applies the user's edit prompt at the source aspect ratio. It reuses Print Studio's diffusion model, Qwen 3 4B text encoder, and Flux2 VAE, so it requires no additional model downloads. The application owns a new API-format workflow copy and does not modify the official ComfyUI template. The source preview remains visible until the enhanced output replaces it.
+
+## Mockup Bench
+
+Mockup Bench is a browser-only, non-destructive two-layer compositor. The user supplies a model photograph and design artwork, drags or numerically positions the artwork, then controls scale, rotation, opacity, and fabric-oriented blend mode before exporting a PNG. Optional shirt recoloring uses an adjustable rounded mask and multiply tint so the source highlights and folds remain visible. The mask is explicitly manual and must be kept inside the garment; the utility does not claim automatic garment segmentation. Reset clears both local image layers and restores authored placement and tint defaults. No upload or generation service is involved.
+
 ## Prompt Builder
 
 Prompt Builder loads its selectable recipes from Markdown files named by `PROMPT_PRESETS`, then sends the user's one-line idea and selected recipe to the configured local Ollama chat endpoint. On desktop its build action occupies the left half of the workspace and the generated prompt follows beneath at full two-column width; narrow screens preserve source order. It returns only the generated prompt, preserves the previous successful result when a later request fails, blocks duplicate submission while pending, and writes to the clipboard only after the user chooses Copy prompt.

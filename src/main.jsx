@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { Aperture, ArrowDown, ArrowUp, ArrowUpRight, Bot, Check, ChevronDown, Copy, Download, Home as HomeIcon, Image as ImageIcon, Layers3, Palette, RefreshCw, RotateCcw, Save, Settings, Shirt, Sparkles } from 'lucide-react'
+import { Aperture, ArrowDown, ArrowUp, ArrowUpRight, Bot, Check, ChevronDown, Copy, Download, Home as HomeIcon, Image as ImageIcon, Layers3, Palette, RefreshCw, RotateCcw, Save, Settings, Shirt, Sparkles, WandSparkles } from 'lucide-react'
 import './styles.css'
 import './darkroom-updates.css'
 
@@ -11,11 +11,13 @@ const DEFAULT_ENV = {
   OLLAMA_URL: 'http://127.0.0.1:11434',
   OLLAMA_MODEL: 'qwen3.5:0.8b',
   PROMPT_PRESETS: 'animation-image.md,realistic-image.md,vector-print.md',
-  UTILITY_ORDER: 'darkroom,print,prompt-builder,upscaler,anime'
+  UTILITY_ORDER: 'darkroom,print,print-enhance,mockup,prompt-builder,upscaler,anime'
 }
 const UTILITY_DEFINITIONS = [
   { id: 'darkroom', title: 'Darkroom', kicker: 'SCENES · ATMOSPHERE · DETAIL', icon: Aperture, specimen: 'LIGHT / GRAIN', copy: 'Build atmospheric images from a positive and negative prompt, with flexible framing and optional LoRA control.', action: 'Develop an image' },
   { id: 'print', title: 'Print Studio', kicker: 'LETTERING · APPAREL · INK', icon: Shirt, specimen: 'TYPE / INK', copy: 'Compose lettering-aware graphics for apparel with screen-print treatments, controlled ink counts, and print-oriented prompting.', action: 'Pull a print' },
+  { id: 'print-enhance', title: 'Print Enhancer', kicker: 'REFERENCE · EDIT · REFINE', icon: WandSparkles, specimen: 'IMAGE / EDIT', copy: 'Upload existing artwork and describe the exact visual enhancement or production-minded change you want to make.', action: 'Enhance artwork' },
+  { id: 'mockup', title: 'Mockup Bench', kicker: 'MODEL · ARTWORK · EXPORT', icon: Layers3, specimen: 'PLACE / TINT', copy: 'Place a design onto a model photograph, tune its print blend, recolor the selected shirt area, and export a mockup.', action: 'Build a mockup' },
   { id: 'prompt-builder', title: 'Prompt Builder', kicker: 'ROUGH IDEA · POLISHED PROMPT', icon: Bot, specimen: 'IDEA / DETAIL', copy: 'Turn one quick idea into a detailed image prompt using a local Ollama model, then copy it into either image utility.', action: 'Build a prompt' },
   { id: 'upscaler', title: 'Image Upscaler', kicker: 'ENLARGE · REFINE · RESTORE', icon: Layers3, specimen: 'SCALE / DETAIL', copy: 'Enlarge an existing image with Real-ESRGAN, then refine texture and detail through Z-Image Turbo.', action: 'Upscale an image' },
   { id: 'anime', title: 'Anime Maker', kicker: 'CHARACTERS · WORLDS · COLOR', icon: Palette, specimen: 'LINE / COLOR', copy: 'Create expressive anime artwork with dedicated positive and negative prompting, framing, and sampling controls.', action: 'Create anime art' }
@@ -25,7 +27,7 @@ function normalizeUtilityOrder(value) {
   const requested = String(value || '').split(',').map(item => item.trim()).filter(item => UTILITY_IDS.includes(item))
   return [...new Set([...requested, ...UTILITY_IDS])]
 }
-const OUTPUT_PREFIX = { darkroom: 'darkroom-z-turbo', print: 'print-studio/flux-klein', upscaler: 'upscaler/z-image-turbo', anime: 'anime/anima-base' }
+const OUTPUT_PREFIX = { darkroom: 'darkroom-z-turbo', print: 'print-studio/flux-klein', printEnhance: 'print-enhancer/flux-klein-edit', upscaler: 'upscaler/z-image-turbo', anime: 'anime/anima-base' }
 const Z_REQUIRED = {
   diffusion: { file: 'z_image_turbo_bf16.safetensors', folder: 'diffusion_models', label: 'Diffusion model', size: '11.46 GB', url: 'https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/diffusion_models/z_image_turbo_bf16.safetensors' },
   text: { file: 'qwen_3_4b.safetensors', folder: 'text_encoders', label: 'Text encoder', size: '7.49 GB', url: 'https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/text_encoders/qwen_3_4b.safetensors' },
@@ -90,6 +92,30 @@ function kleinWorkflow({ prompt, width, height, steps, guidance, seed, model, en
     '11': { class_type: 'SamplerCustomAdvanced', inputs: { noise: ['7', 0], guider: ['8', 0], sampler: ['9', 0], sigmas: ['10', 0], latent_image: ['6', 0] } },
     '12': { class_type: 'VAEDecode', inputs: { samples: ['11', 0], vae: ['3', 0] } },
     '13': { class_type: 'SaveImage', inputs: { filename_prefix: outputPrefix, images: ['12', 0] } }
+  }
+}
+
+function kleinReferenceEditWorkflow({ image, prompt, steps, guidance, seed, outputPrefix }) {
+  return {
+    '1': { class_type: 'LoadImage', inputs: { image } },
+    '2': { class_type: 'ImageScaleToTotalPixels', inputs: { image: ['1', 0], upscale_method: 'nearest-exact', megapixels: 1, resolution_steps: 1 } },
+    '3': { class_type: 'UNETLoader', inputs: { unet_name: KLEIN_REQUIRED.diffusion.file, weight_dtype: 'default' } },
+    '4': { class_type: 'CLIPLoader', inputs: { clip_name: KLEIN_REQUIRED.text.file, type: 'flux2', device: 'default' } },
+    '5': { class_type: 'VAELoader', inputs: { vae_name: KLEIN_REQUIRED.vae.file } },
+    '6': { class_type: 'CLIPTextEncode', inputs: { text: prompt, clip: ['4', 0] } },
+    '7': { class_type: 'ConditioningZeroOut', inputs: { conditioning: ['6', 0] } },
+    '8': { class_type: 'VAEEncode', inputs: { pixels: ['2', 0], vae: ['5', 0] } },
+    '9': { class_type: 'ReferenceLatent', inputs: { conditioning: ['6', 0], latent: ['8', 0] } },
+    '10': { class_type: 'ReferenceLatent', inputs: { conditioning: ['7', 0], latent: ['8', 0] } },
+    '11': { class_type: 'GetImageSize', inputs: { image: ['2', 0] } },
+    '12': { class_type: 'EmptyFlux2LatentImage', inputs: { width: ['11', 0], height: ['11', 1], batch_size: 1 } },
+    '13': { class_type: 'RandomNoise', inputs: { noise_seed: seed < 0 ? Math.floor(Math.random() * Number.MAX_SAFE_INTEGER) : seed } },
+    '14': { class_type: 'CFGGuider', inputs: { model: ['3', 0], positive: ['9', 0], negative: ['10', 0], cfg: guidance } },
+    '15': { class_type: 'KSamplerSelect', inputs: { sampler_name: 'euler' } },
+    '16': { class_type: 'Flux2Scheduler', inputs: { steps, width: ['11', 0], height: ['11', 1] } },
+    '17': { class_type: 'SamplerCustomAdvanced', inputs: { noise: ['13', 0], guider: ['14', 0], sampler: ['15', 0], sigmas: ['16', 0], latent_image: ['12', 0] } },
+    '18': { class_type: 'VAEDecode', inputs: { samples: ['17', 0], vae: ['5', 0] } },
+    '19': { class_type: 'SaveImage', inputs: { filename_prefix: outputPrefix, images: ['18', 0] } }
   }
 }
 
@@ -305,6 +331,98 @@ function PrintStudio() {
   </form>} output={<><OutputStage imageUrl={imageUrl} busy={busy} prompt={prompt} frame={frame} label={`${frame.ratio} · ${inkCount} INKS`} filename="flux-klein-shirt-print.png"/><div className="model-note print-note"><strong>Production note</strong><span>The download is a raster PNG. Verify spelling and your printer’s size, background, and color-profile requirements before manufacturing.</span></div><ModelSetup required={KLEIN_REQUIRED} {...assetState} intro="Install the official FLUX.2 Klein 4B Distilled files. The Qwen encoder can be shared with Z-Image."/></>}/>
 }
 
+function PrintEnhancer() {
+  const assetState = useComfyAssets(KLEIN_REQUIRED)
+  const [file, setFile] = useState(null), [sourceUrl, setSourceUrl] = useState(''), [imageUrl, setImageUrl] = useState('')
+  const [frame, setFrame] = useState(defaultFrame), [prompt, setPrompt] = useState('Improve edge clarity and visual hierarchy while preserving the subject, composition, lettering, and limited print palette.')
+  const [steps, setSteps] = useState(4), [guidance, setGuidance] = useState(1), [seed, setSeed] = useState(-1)
+  const [busy, setBusy] = useState(false), [jobStatus, setJobStatus] = useState('')
+  const progress = useEstimatedProgress(busy, 18 + steps * 2.3)
+  const abort = useRef(false), fileInput = useRef(null)
+  const chooseFile = event => {
+    const next = event.target.files?.[0]; if (!next) return
+    if (sourceUrl) URL.revokeObjectURL(sourceUrl)
+    const url = URL.createObjectURL(next); setFile(next); setSourceUrl(url); setImageUrl(''); assetState.setError('')
+    const probe = new Image(); probe.onload = () => setFrame({ width: probe.naturalWidth, height: probe.naturalHeight, ratio: 'Source', orientation: probe.naturalWidth === probe.naturalHeight ? 'square' : probe.naturalWidth > probe.naturalHeight ? 'landscape' : 'portrait' }); probe.src = url
+  }
+  const reset = () => {
+    if (sourceUrl) URL.revokeObjectURL(sourceUrl)
+    setFile(null); setSourceUrl(''); setImageUrl(''); setFrame(defaultFrame); setPrompt('Improve edge clarity and visual hierarchy while preserving the subject, composition, lettering, and limited print palette.'); setSteps(4); setGuidance(1); setSeed(-1); setJobStatus(''); assetState.setError(''); if (fileInput.current) fileInput.current.value = ''; assetState.loadAssets()
+  }
+  const generate = async event => {
+    event.preventDefault(); if (!file || !prompt.trim() || !assetState.ready || busy) return
+    setBusy(true); setImageUrl(''); assetState.setError(''); setJobStatus('Uploading reference image…'); abort.current = false
+    try {
+      const image = await uploadImageToComfy(file)
+      setJobStatus('Enhancing from reference…')
+      await runWorkflow(kleinReferenceEditWorkflow({ image, prompt: prompt.trim(), steps, guidance, seed, outputPrefix: OUTPUT_PREFIX.printEnhance }), '19', setJobStatus, setImageUrl, abort)
+    } catch (error) { assetState.setError(error.message); setJobStatus('Could not enhance artwork') } finally { setBusy(false) }
+  }
+  return <ToolLayout eyebrow="PRINT ENHANCER · REFERENCE EDIT" title="Enhance existing artwork" dek="FLUX.2 Klein 4B · single-reference image editing" status={jobStatus || assetState.status} ready={assetState.ready} accent="print-enhance" onReset={reset} resetDisabled={busy} controls={<form className="controls" noValidate onSubmit={generate}>
+    <section><div className="section-head"><span>01</span><h2>Choose the reference</h2></div><label htmlFor="enhance-source">Artwork file</label><input ref={fileInput} className="file-input" id="enhance-source" type="file" accept="image/png,image/jpeg,image/webp" onChange={chooseFile}/><p className="help">PNG, JPEG, or WebP. The image stays on your machine and is uploaded only to local ComfyUI.</p></section>
+    <section><div className="section-head"><span>02</span><h2>Describe the edit</h2></div><label htmlFor="enhance-prompt">Edit prompt <span>change request</span></label><textarea className="resize-none" id="enhance-prompt" rows="7" value={prompt} onChange={event => setPrompt(event.target.value)} aria-describedby="enhance-prompt-help"/><p className="help" id="enhance-prompt-help">Say what to change and what must stay unchanged. Quote any lettering that must remain exact.</p></section>
+    <section><div className="section-head"><span>03</span><h2>Tune the enhancement</h2></div><Slider id="enhance-steps" label="Steps" hint="detail passes" value={steps} min={4} max={12} onChange={setSteps}/><Slider id="enhance-guidance" label="Guidance" hint="prompt strength" value={guidance} min={1} max={5} step={0.1} onChange={setGuidance}/><div className="field"><label htmlFor="enhance-seed">Seed <span>variation key · −1 random</span></label><input id="enhance-seed" type="number" value={seed} min="-1" max="9007199254740991" onChange={event => setSeed(Number(event.target.value))}/></div><p className="help">Four steps and guidance 1 match the distilled model’s official fast-edit defaults.</p></section>
+    {assetState.error && <p className="error" role="alert">{assetState.error}</p>}<button className="generate" type="submit" disabled={!file || !prompt.trim() || !assetState.ready || busy} aria-busy={busy}>{busy ? <><span className="spinner"/>Enhancing…</> : <><WandSparkles size={18}/>Enhance Artwork</>}</button><GenerationProgress busy={busy} value={progress} label={jobStatus.startsWith('Uploading') ? 'Uploading reference' : 'Enhancing artwork'}/><UtilityStatus status={jobStatus || assetState.status} ready={assetState.ready}/>{!assetState.ready && <p className="button-help">This utility reuses the three Print Studio model files.</p>}
+  </form>} output={<><OutputStage imageUrl={imageUrl || sourceUrl} busy={busy} prompt={file?.name || 'reference artwork'} frame={frame} label={imageUrl ? 'ENHANCED' : sourceUrl ? 'REFERENCE' : 'WAITING'} filename="flux-klein-enhanced-print.png" downloadable={Boolean(imageUrl)}/><div className="model-note"><strong>Reference edit</strong><span>The source guides composition and content. Describe preservation requirements explicitly, then verify lettering and separations before production.</span></div><ModelSetup required={KLEIN_REQUIRED} {...assetState} intro="No additional downloads: Print Enhancer reuses Print Studio’s FLUX.2 Klein 4B, Qwen encoder, and Flux2 VAE files."/></>}/>
+}
+
+function MockupBench() {
+  const canvasRef = useRef(null), modelInput = useRef(null), designInput = useRef(null), dragging = useRef(null)
+  const [model, setModel] = useState(null), [design, setDesign] = useState(null), [modelName, setModelName] = useState(''), [designName, setDesignName] = useState('')
+  const [placement, setPlacement] = useState({ x: 50, y: 53, size: 34, rotation: 0, opacity: 92, blend: 'multiply' })
+  const [shirt, setShirt] = useState({ enabled: false, x: 50, y: 58, width: 50, height: 55, roundness: 22, color: '#315c8a', strength: 58 })
+  const [error, setError] = useState('')
+  const loadImage = (file, setter, nameSetter) => {
+    if (!file) return
+    if (!file.type.startsWith('image/')) return setError('Choose a PNG, JPEG, or WebP image.')
+    const url = URL.createObjectURL(file), image = new Image()
+    image.onload = () => { URL.revokeObjectURL(url); setter(image); nameSetter(file.name); setError('') }
+    image.onerror = () => { URL.revokeObjectURL(url); setError('That image could not be opened.') }
+    image.src = url
+  }
+  const render = () => {
+    const canvas = canvasRef.current; if (!canvas || !model) return
+    const maxEdge = 1800, scale = Math.min(1, maxEdge / Math.max(model.naturalWidth, model.naturalHeight))
+    canvas.width = Math.round(model.naturalWidth * scale); canvas.height = Math.round(model.naturalHeight * scale)
+    const ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.drawImage(model, 0, 0, canvas.width, canvas.height)
+    if (shirt.enabled) {
+      const x = (shirt.x - shirt.width / 2) / 100 * canvas.width, y = (shirt.y - shirt.height / 2) / 100 * canvas.height
+      const width = shirt.width / 100 * canvas.width, height = shirt.height / 100 * canvas.height, radius = Math.min(width, height) * shirt.roundness / 200
+      ctx.save(); ctx.beginPath(); ctx.roundRect(x, y, width, height, radius); ctx.clip(); ctx.globalCompositeOperation = 'multiply'; ctx.globalAlpha = shirt.strength / 100; ctx.fillStyle = shirt.color; ctx.fillRect(x, y, width, height); ctx.restore()
+    }
+    if (design) {
+      const width = placement.size / 100 * canvas.width, height = width * design.naturalHeight / design.naturalWidth
+      const x = placement.x / 100 * canvas.width, y = placement.y / 100 * canvas.height
+      ctx.save(); ctx.translate(x, y); ctx.rotate(placement.rotation * Math.PI / 180); ctx.globalAlpha = placement.opacity / 100; ctx.globalCompositeOperation = placement.blend; ctx.drawImage(design, -width / 2, -height / 2, width, height); ctx.restore()
+    }
+  }
+  useEffect(render, [model, design, placement, shirt])
+  const pointerDown = event => {
+    if (!design || !model) return
+    const rect = canvasRef.current.getBoundingClientRect()
+    dragging.current = { dx: event.clientX - rect.left - placement.x / 100 * rect.width, dy: event.clientY - rect.top - placement.y / 100 * rect.height }
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+  const pointerMove = event => {
+    if (!dragging.current) return
+    const rect = canvasRef.current.getBoundingClientRect()
+    setPlacement(current => ({ ...current, x: Math.max(0, Math.min(100, (event.clientX - rect.left - dragging.current.dx) / rect.width * 100)), y: Math.max(0, Math.min(100, (event.clientY - rect.top - dragging.current.dy) / rect.height * 100)) }))
+  }
+  const exportMockup = () => {
+    if (!model || !design) return
+    render(); const link = document.createElement('a'); link.download = 't-shirt-mockup.png'; link.href = canvasRef.current.toDataURL('image/png'); link.click()
+  }
+  const reset = () => { setModel(null); setDesign(null); setModelName(''); setDesignName(''); setPlacement({ x: 50, y: 53, size: 34, rotation: 0, opacity: 92, blend: 'multiply' }); setShirt({ enabled: false, x: 50, y: 58, width: 50, height: 55, roundness: 22, color: '#315c8a', strength: 58 }); setError(''); if (modelInput.current) modelInput.current.value = ''; if (designInput.current) designInput.current.value = '' }
+  const controls = <form className="controls mockup-controls" noValidate onSubmit={event => event.preventDefault()}>
+    <section><div className="section-head"><span>01</span><h2>Load the layers</h2></div><label htmlFor="mockup-model">Model photograph</label><input ref={modelInput} className="file-input" id="mockup-model" type="file" accept="image/png,image/jpeg,image/webp" onChange={event => loadImage(event.target.files?.[0], setModel, setModelName)}/>{modelName && <p className="help">Loaded: <code>{modelName}</code></p>}<div className="field"><label htmlFor="mockup-design">Design artwork</label><input ref={designInput} className="file-input" id="mockup-design" type="file" accept="image/png,image/jpeg,image/webp" onChange={event => loadImage(event.target.files?.[0], setDesign, setDesignName)}/></div>{designName && <p className="help">Loaded: <code>{designName}</code>. Transparent PNG gives the cleanest result.</p>}</section>
+    <section><div className="section-head"><span>02</span><h2>Place the design</h2></div><p className="help">Drag the artwork directly on the preview, then fine-tune it below.</p><Slider id="design-x" label="Horizontal" hint="left / right" value={Math.round(placement.x)} min={0} max={100} suffix="%" onChange={value => setPlacement(current => ({ ...current, x: value }))}/><Slider id="design-y" label="Vertical" hint="up / down" value={Math.round(placement.y)} min={0} max={100} suffix="%" onChange={value => setPlacement(current => ({ ...current, y: value }))}/><Slider id="design-size" label="Size" hint="artwork width" value={placement.size} min={5} max={90} suffix="%" onChange={value => setPlacement(current => ({ ...current, size: value }))}/><Slider id="design-rotation" label="Rotation" hint="artwork angle" value={placement.rotation} min={-45} max={45} suffix="°" onChange={value => setPlacement(current => ({ ...current, rotation: value }))}/><Slider id="design-opacity" label="Opacity" hint="print density" value={placement.opacity} min={10} max={100} suffix="%" onChange={value => setPlacement(current => ({ ...current, opacity: value }))}/><div className="field"><label htmlFor="design-blend">Blend mode <span>fabric interaction</span></label><select id="design-blend" value={placement.blend} onChange={event => setPlacement(current => ({ ...current, blend: event.target.value }))}><option value="multiply">Multiply · shows folds</option><option value="source-over">Normal · preserves color</option><option value="screen">Screen · for dark shirts</option><option value="overlay">Overlay · stronger contrast</option></select></div></section>
+    <section><div className="section-head"><span>03</span><h2>Optional shirt color</h2></div><label className="switch-row"><span>Apply shirt tint<small>Uses an adjustable rounded mask.</small></span><input type="checkbox" checked={shirt.enabled} onChange={event => setShirt(current => ({ ...current, enabled: event.target.checked }))}/></label><div className="shirt-color-row"><label htmlFor="shirt-color">Color</label><input id="shirt-color" type="color" value={shirt.color} disabled={!shirt.enabled} onChange={event => setShirt(current => ({ ...current, color: event.target.value }))}/></div><Slider id="shirt-strength" label="Tint strength" hint="color amount" value={shirt.strength} min={0} max={100} suffix="%" disabled={!shirt.enabled} onChange={value => setShirt(current => ({ ...current, strength: value }))}/><Slider id="shirt-x" label="Mask horizontal" hint="left / right" value={shirt.x} min={0} max={100} suffix="%" disabled={!shirt.enabled} onChange={value => setShirt(current => ({ ...current, x: value }))}/><Slider id="shirt-y" label="Mask vertical" hint="up / down" value={shirt.y} min={0} max={100} suffix="%" disabled={!shirt.enabled} onChange={value => setShirt(current => ({ ...current, y: value }))}/><Slider id="shirt-width" label="Mask width" hint="shirt coverage" value={shirt.width} min={10} max={100} suffix="%" disabled={!shirt.enabled} onChange={value => setShirt(current => ({ ...current, width: value }))}/><Slider id="shirt-height" label="Mask height" hint="shirt coverage" value={shirt.height} min={10} max={100} suffix="%" disabled={!shirt.enabled} onChange={value => setShirt(current => ({ ...current, height: value }))}/><Slider id="shirt-roundness" label="Mask corners" hint="edge shape" value={shirt.roundness} min={0} max={100} suffix="%" disabled={!shirt.enabled} onChange={value => setShirt(current => ({ ...current, roundness: value }))}/><p className="help">This is a manual tint mask, not automatic garment segmentation. Keep it inside the shirt to avoid coloring skin or background.</p></section>
+    {error && <p className="error" role="alert">{error}</p>}<button className="generate" type="button" disabled={!model || !design} onClick={exportMockup}><Download size={18}/>Export Mockup PNG</button>
+  </form>
+  const output = <section className="stage mockup-stage" aria-label="T-shirt mockup preview"><div className="mockup-canvas-wrap">{model ? <canvas ref={canvasRef} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={() => { dragging.current = null }} onPointerCancel={() => { dragging.current = null }} aria-label="Mockup canvas. Drag to position the design."/> : <div className="empty"><Layers3 size={38}/><p>Your mockup will appear here.</p><span>Load a model photograph and design artwork.</span></div>}</div><div className="stage-meta"><span>{model ? `${model.naturalWidth} × ${model.naturalHeight} PX` : 'WAITING FOR MODEL'}</span><span>LOCAL COMPOSITE</span></div></section>
+  return <ToolLayout eyebrow="MOCKUP BENCH · LAYERED COMPOSITE" title="Build a shirt mockup" dek="Two image layers · live placement · local PNG export" accent="mockup" onReset={reset} controls={controls} output={output}/>
+}
+
 function ImageUpscaler() {
   const assetState = useComfyAssets(UPSCALE_REQUIRED)
   const [file, setFile] = useState(null), [sourceUrl, setSourceUrl] = useState(''), [imageUrl, setImageUrl] = useState('')
@@ -441,11 +559,11 @@ function App() {
   const [visited, setVisited] = useState(() => new Set(['home']))
   useEffect(() => { fetch('/api/settings').then(response => response.json()).then(setEnv).catch(() => {}) }, [])
   useEffect(() => {
-    const titles = { home: 'Local Workshop', darkroom: 'Darkroom | Local Workshop', print: 'Print Studio | Local Workshop', 'prompt-builder': 'Prompt Builder | Local Workshop', upscaler: 'Image Upscaler | Local Workshop', anime: 'Anime Maker | Local Workshop', settings: 'Settings | Local Workshop' }
+    const titles = { home: 'Local Workshop', darkroom: 'Darkroom | Local Workshop', print: 'Print Studio | Local Workshop', 'print-enhance': 'Print Enhancer | Local Workshop', mockup: 'Mockup Bench | Local Workshop', 'prompt-builder': 'Prompt Builder | Local Workshop', upscaler: 'Image Upscaler | Local Workshop', anime: 'Anime Maker | Local Workshop', settings: 'Settings | Local Workshop' }
     document.title = titles[active]
   }, [active])
   const navigate = id => { setVisited(current => new Set(current).add(id)); setActive(id) }
-  return <div className="app-shell"><UtilityRail active={active} onChange={navigate} order={env.UTILITY_ORDER}/>{visited.has('home') && <div className="utility-panel" hidden={active !== 'home'}><Home onOpen={navigate} order={env.UTILITY_ORDER}/></div>}{visited.has('darkroom') && <div className="utility-panel" hidden={active !== 'darkroom'}><Darkroom/></div>}{visited.has('print') && <div className="utility-panel" hidden={active !== 'print'}><PrintStudio/></div>}{visited.has('prompt-builder') && <div className="utility-panel" hidden={active !== 'prompt-builder'}><PromptBuilder env={env}/></div>}{visited.has('upscaler') && <div className="utility-panel" hidden={active !== 'upscaler'}><ImageUpscaler/></div>}{visited.has('anime') && <div className="utility-panel" hidden={active !== 'anime'}><AnimeMaker/></div>}{visited.has('settings') && <div className="utility-panel" hidden={active !== 'settings'}><SettingsPanel env={env} onSaved={setEnv}/></div>}</div>
+  return <div className="app-shell"><UtilityRail active={active} onChange={navigate} order={env.UTILITY_ORDER}/>{visited.has('home') && <div className="utility-panel" hidden={active !== 'home'}><Home onOpen={navigate} order={env.UTILITY_ORDER}/></div>}{visited.has('darkroom') && <div className="utility-panel" hidden={active !== 'darkroom'}><Darkroom/></div>}{visited.has('print') && <div className="utility-panel" hidden={active !== 'print'}><PrintStudio/></div>}{visited.has('print-enhance') && <div className="utility-panel" hidden={active !== 'print-enhance'}><PrintEnhancer/></div>}{visited.has('mockup') && <div className="utility-panel" hidden={active !== 'mockup'}><MockupBench/></div>}{visited.has('prompt-builder') && <div className="utility-panel" hidden={active !== 'prompt-builder'}><PromptBuilder env={env}/></div>}{visited.has('upscaler') && <div className="utility-panel" hidden={active !== 'upscaler'}><ImageUpscaler/></div>}{visited.has('anime') && <div className="utility-panel" hidden={active !== 'anime'}><AnimeMaker/></div>}{visited.has('settings') && <div className="utility-panel" hidden={active !== 'settings'}><SettingsPanel env={env} onSaved={setEnv}/></div>}</div>
 }
 
 const container = document.getElementById('root')

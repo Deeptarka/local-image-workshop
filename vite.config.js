@@ -11,7 +11,7 @@ const DEFAULTS = {
   OLLAMA_URL: 'http://127.0.0.1:11434',
   OLLAMA_MODEL: 'qwen3.5:0.8b',
   PROMPT_PRESETS: DEFAULT_PROMPT_PRESETS,
-  UTILITY_ORDER: 'darkroom,print,prompt-builder,upscaler,anime'
+  UTILITY_ORDER: 'darkroom,print,print-enhance,mockup,prompt-builder,upscaler,anime'
 }
 const ALLOWED_KEYS = Object.keys(DEFAULTS)
 let runtimeSettings = { ...DEFAULTS }
@@ -49,7 +49,7 @@ async function saveSettings(next) {
   const clean = { ...DEFAULTS }
   for (const key of ALLOWED_KEYS) if (typeof next[key] === 'string' && next[key].trim()) clean[key] = next[key].trim()
   new URL(clean.COMFYUI_URL); new URL(clean.OLLAMA_URL)
-  const validUtilities = ['darkroom', 'print', 'prompt-builder', 'upscaler', 'anime']
+  const validUtilities = ['darkroom', 'print', 'print-enhance', 'mockup', 'prompt-builder', 'upscaler', 'anime']
   const requestedOrder = clean.UTILITY_ORDER.split(',').map(item => item.trim()).filter(item => validUtilities.includes(item))
   clean.UTILITY_ORDER = [...new Set([...requestedOrder, ...validUtilities])].join(',')
   const contents = `${ALLOWED_KEYS.map(key => `${key}=${JSON.stringify(clean[key])}`).join('\n')}\n`
