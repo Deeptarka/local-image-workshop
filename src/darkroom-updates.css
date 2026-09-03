@@ -741,22 +741,6 @@ input[type="range"],
 
 .mockup-canvas-wrap canvas:active { cursor: grabbing; }
 
-.shirt-color-row {
-  align-items: center;
-  display: flex;
-  justify-content: space-between;
-  margin-top: 16px;
-}
-
-.shirt-color-row input[type="color"] {
-  cursor: pointer;
-  height: 38px;
-  padding: 3px;
-  width: 64px;
-}
-
-.shirt-color-row input[type="color"]:disabled { cursor: default; opacity: .4; }
-
 @media (max-width: 800px) {
   .mockup-canvas-wrap { min-height: 300px; }
   .mockup-canvas-wrap canvas { max-height: none; width: 100%; }

@@ -37,7 +37,7 @@ Print Enhancer is a separate single-reference image-edit utility based on the of
 
 ## Mockup Bench
 
-Mockup Bench is a browser-only, non-destructive two-layer compositor. The user supplies a model photograph and design artwork, drags or numerically positions the artwork, then controls scale, rotation, opacity, and fabric-oriented blend mode before exporting a PNG. Optional shirt recoloring uses an adjustable rounded mask and multiply tint so the source highlights and folds remain visible. The mask is explicitly manual and must be kept inside the garment; the utility does not claim automatic garment segmentation. Reset clears both local image layers and restores authored placement and tint defaults. No upload or generation service is involved.
+Mockup Bench is a browser-only, non-destructive two-layer compositor. The user supplies a model photograph and design artwork, drags or numerically positions the artwork, then controls scale, rotation, opacity, and fabric-oriented blend mode before exporting a PNG. It does not recolor garments; users provide a model photograph with the intended shirt color. Reset clears both local image layers and restores authored placement defaults. No upload or generation service is involved.
 
 ## Prompt Builder
 
