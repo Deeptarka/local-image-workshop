@@ -80,6 +80,13 @@ function parsePromptVocabulary(source) {
   for (const rawLine of source.split(/\r?\n/)) {
     if (!rawLine.trim() || rawLine.trimStart().startsWith('#')) continue
     const indent = rawLine.length - rawLine.trimStart().length
+    const inlineListMatch = rawLine.trim().match(/^([a-zA-Z0-9_]+):\s*\[(.*)\]\s*$/)
+    if (inlineListMatch) {
+      while (stack.length && stack.at(-1).indent >= indent) stack.pop()
+      const pathKey = [...stack.map(item => item.key), inlineListMatch[1]].join('.')
+      result[pathKey] = inlineListMatch[2].split(',').map(value => value.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean)
+      continue
+    }
     const keyMatch = rawLine.trim().match(/^([a-zA-Z0-9_]+):(?:\s.*)?$/)
     if (keyMatch) {
       while (stack.length && stack.at(-1).indent >= indent) stack.pop()
