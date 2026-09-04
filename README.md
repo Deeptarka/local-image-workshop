@@ -106,7 +106,7 @@ Mockup Bench performs the entire composition in the browser and does not upload 
 
 1. Load a model photograph with a clearly visible shirt.
 2. Load the design artwork. A transparent PNG provides the cleanest edges.
-3. Drag the design on the preview or use the position, size, rotation, opacity, and blend controls.
+3. Drag the design on the preview or use position, size, X-axis Pitch, Y-axis Yaw, Z-axis Roll, Skew, opacity, and blend controls. Pitch and Yaw add perspective for angled bodies, Roll spins the artwork flat in the frame, and Skew shears it with a torso lean.
 4. Use Multiply to reveal folds on light shirts, Normal to preserve exact artwork colors, or Screen for light artwork on dark shirts.
 5. Export the finished composition as a PNG.
 

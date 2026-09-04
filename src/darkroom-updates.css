@@ -741,6 +741,16 @@ input[type="range"],
 
 .mockup-canvas-wrap canvas:active { cursor: grabbing; }
 
+.has-image { --zoom-x: 50%; --zoom-y: 50%; }
+.zoomable-image { transform-origin: var(--zoom-x) var(--zoom-y); transition: transform 180ms ease-out; will-change: transform; }
+
+@media (hover: hover) and (pointer: fine) {
+  .aperture.has-image { cursor: zoom-in; }
+  .aperture.has-image:hover .zoomable-image { transform: scale(1.8); }
+  .mockup-canvas-wrap.has-image:hover:not(:active) .zoomable-image { cursor: zoom-in; transform: scale(1.8); }
+  .mockup-canvas-wrap.has-image:active .zoomable-image { transform: scale(1); transition-duration: 80ms; }
+}
+
 .studio-shell { padding-top: 28px; }
 .studio-tabs { display: grid; grid-template-columns: repeat(3, 1fr); border-bottom: 1px solid var(--ink); }
 .studio-tabs button { min-height: 54px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-top: 1px solid var(--line); border-left: 1px solid var(--line); background: #fff; color: var(--muted); font: 700 12px Consolas, monospace; }

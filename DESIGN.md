@@ -56,6 +56,8 @@ Small radii only. Controls feel machined; the image aperture is nearly square.
 
 Controls expose visible labels and values. Ratio presets resemble camera backs, and model readiness is expressed as a role-by-role pipeline. Every working utility exposes one consistent reset action, disabled while that utility is busy. The generate button retains its dimensions while busy. Readiness occupies a reserved live region directly beneath the relevant generate/build action, keeping the header focused on page identity and reset.
 
+Every image-bearing aperture uses the same pointer-position hover magnifier on fine-pointer devices. The image scales inside its clipped frame without changing layout; touch devices retain the normal preview. Mockup Bench suppresses magnification while the user drags artwork so positioning remains stable.
+
 Model Studio uses three semantic tabs as a literal production sequence: Style, Prompt, Image. Its dropdowns are native selects because operating-system popup geometry is acceptable for this dense local desktop tool. The broken prompt is an immutable snapshot of selections, visually treated like a clipped casting brief; only an explicit rebuild replaces it. The expanded prompt and image-stage prompt remain editable.
 
 ## Do's and Don'ts

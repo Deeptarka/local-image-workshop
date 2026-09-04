@@ -210,8 +210,14 @@ function ModelFile({ item, installed }) {
   return <li className={installed ? 'model-file ready' : 'model-file'}><span className="file-state" aria-hidden="true">{installed ? <Check size={14}/> : '↓'}</span><span className="file-copy"><strong>{item.file}</strong><small>{item.label}<br/>models/{item.folder}</small></span>{!installed && <a href={item.url} target="_blank" rel="noreferrer">Download</a>}</li>
 }
 
+function trackZoomOrigin(event, target = event.currentTarget) {
+  const rect = target.getBoundingClientRect()
+  target.style.setProperty('--zoom-x', `${Math.max(0, Math.min(100, (event.clientX - rect.left) / rect.width * 100))}%`)
+  target.style.setProperty('--zoom-y', `${Math.max(0, Math.min(100, (event.clientY - rect.top) / rect.height * 100))}%`)
+}
+
 function OutputStage({ imageUrl, busy, prompt, frame, label, filename, downloadable = true }) {
-  return <section className="stage" aria-label="Generated image preview"><div className={`aperture ${busy ? 'working' : ''}`} style={{ aspectRatio: `${frame.width} / ${frame.height}` }}>{imageUrl ? <img src={imageUrl} alt={`Generated image: ${prompt}`}/> : <div className="empty"><ImageIcon size={38}/><p>Your image will develop here.</p><span>Nothing leaves this machine.</span></div>}{busy && <div className="developing"><span>DEVELOPING</span></div>}</div><div className="stage-meta"><span>{frame.width} × {frame.height} PX · {label}</span>{imageUrl && downloadable && <a className="download" href={imageUrl} download={filename}><Download size={17}/>Download Image</a>}</div></section>
+  return <section className="stage" aria-label="Generated image preview"><div className={`aperture ${imageUrl ? 'has-image' : ''} ${busy ? 'working' : ''}`} style={{ aspectRatio: `${frame.width} / ${frame.height}` }} onPointerMove={imageUrl ? trackZoomOrigin : undefined}>{imageUrl ? <img className="zoomable-image" src={imageUrl} alt={`Generated image: ${prompt}`}/> : <div className="empty"><ImageIcon size={38}/><p>Your image will develop here.</p><span>Nothing leaves this machine.</span></div>}{busy && <div className="developing"><span>DEVELOPING</span></div>}</div><div className="stage-meta"><span>{frame.width} × {frame.height} PX · {label}</span>{imageUrl && downloadable && <a className="download" href={imageUrl} download={filename}><Download size={17}/>Download Image</a>}</div></section>
 }
 
 function UtilityStatus({ status, ready }) {
@@ -367,10 +373,43 @@ function PrintEnhancer() {
   </form>} output={<><OutputStage imageUrl={imageUrl || sourceUrl} busy={busy} prompt={file?.name || 'reference artwork'} frame={frame} label={imageUrl ? 'ENHANCED' : sourceUrl ? 'REFERENCE' : 'WAITING'} filename="flux-klein-enhanced-print.png" downloadable={Boolean(imageUrl)}/><div className="model-note"><strong>Reference edit</strong><span>The source guides composition and content. Describe preservation requirements explicitly, then verify lettering and separations before production.</span></div><ModelSetup required={KLEIN_REQUIRED} {...assetState} intro="No additional downloads: Print Enhancer reuses Print Studio’s FLUX.2 Klein 4B, Qwen encoder, and Flux2 VAE files."/></>}/>
 }
 
+function drawImageTriangle(ctx, image, source, target) {
+  const [s0, s1, s2] = source, [t0, t1, t2] = target
+  const denominator = s0.x * (s1.y - s2.y) + s1.x * (s2.y - s0.y) + s2.x * (s0.y - s1.y)
+  if (!denominator) return
+  const a = (t0.x * (s1.y - s2.y) + t1.x * (s2.y - s0.y) + t2.x * (s0.y - s1.y)) / denominator
+  const b = (t0.y * (s1.y - s2.y) + t1.y * (s2.y - s0.y) + t2.y * (s0.y - s1.y)) / denominator
+  const c = (t0.x * (s2.x - s1.x) + t1.x * (s0.x - s2.x) + t2.x * (s1.x - s0.x)) / denominator
+  const d = (t0.y * (s2.x - s1.x) + t1.y * (s0.x - s2.x) + t2.y * (s1.x - s0.x)) / denominator
+  const e = (t0.x * (s1.x * s2.y - s2.x * s1.y) + t1.x * (s2.x * s0.y - s0.x * s2.y) + t2.x * (s0.x * s1.y - s1.x * s0.y)) / denominator
+  const f = (t0.y * (s1.x * s2.y - s2.x * s1.y) + t1.y * (s2.x * s0.y - s0.x * s2.y) + t2.y * (s0.x * s1.y - s1.x * s0.y)) / denominator
+  ctx.save(); ctx.beginPath(); ctx.moveTo(t0.x, t0.y); ctx.lineTo(t1.x, t1.y); ctx.lineTo(t2.x, t2.y); ctx.closePath(); ctx.clip(); ctx.transform(a, b, c, d, e, f); ctx.drawImage(image, 0, 0); ctx.restore()
+}
+
+function drawPerspectiveImage(ctx, image, width, height, pitch, yaw) {
+  if (!pitch && !yaw) { ctx.drawImage(image, -width / 2, -height / 2, width, height); return }
+  const pitchRad = pitch * Math.PI / 180, yawRad = yaw * Math.PI / 180
+  const cosX = Math.cos(pitchRad), sinX = Math.sin(pitchRad), cosY = Math.cos(yawRad), sinY = Math.sin(yawRad)
+  const distance = Math.max(width, height) * 2.4, segments = 14
+  const project = (u, v) => {
+    const x = (u - .5) * width, y = (v - .5) * height
+    const yawX = x * cosY, yawZ = -x * sinY
+    const pitchY = y * cosX - yawZ * sinX, depth = y * sinX + yawZ * cosX
+    const perspective = distance / Math.max(distance + depth, distance * .25)
+    return { x: yawX * perspective, y: pitchY * perspective }
+  }
+  for (let row = 0; row < segments; row++) for (let column = 0; column < segments; column++) {
+    const u0 = column / segments, u1 = (column + 1) / segments, v0 = row / segments, v1 = (row + 1) / segments
+    const s00 = { x: u0 * image.naturalWidth, y: v0 * image.naturalHeight }, s10 = { x: u1 * image.naturalWidth, y: v0 * image.naturalHeight }, s01 = { x: u0 * image.naturalWidth, y: v1 * image.naturalHeight }, s11 = { x: u1 * image.naturalWidth, y: v1 * image.naturalHeight }
+    const t00 = project(u0, v0), t10 = project(u1, v0), t01 = project(u0, v1), t11 = project(u1, v1)
+    drawImageTriangle(ctx, image, [s00, s10, s11], [t00, t10, t11]); drawImageTriangle(ctx, image, [s00, s11, s01], [t00, t11, t01])
+  }
+}
+
 function MockupBench() {
   const canvasRef = useRef(null), modelInput = useRef(null), designInput = useRef(null), dragging = useRef(null)
   const [model, setModel] = useState(null), [design, setDesign] = useState(null), [modelName, setModelName] = useState(''), [designName, setDesignName] = useState('')
-  const [placement, setPlacement] = useState({ x: 50, y: 53, size: 34, rotation: 0, opacity: 92, blend: 'multiply' })
+  const [placement, setPlacement] = useState({ x: 50, y: 53, size: 34, pitch: 0, yaw: 0, roll: 0, skew: 0, opacity: 92, blend: 'multiply' })
   const [error, setError] = useState('')
   const loadImage = (file, setter, nameSetter) => {
     if (!file) return
@@ -388,7 +427,7 @@ function MockupBench() {
     if (design) {
       const width = placement.size / 100 * canvas.width, height = width * design.naturalHeight / design.naturalWidth
       const x = placement.x / 100 * canvas.width, y = placement.y / 100 * canvas.height
-      ctx.save(); ctx.translate(x, y); ctx.rotate(placement.rotation * Math.PI / 180); ctx.globalAlpha = placement.opacity / 100; ctx.globalCompositeOperation = placement.blend; ctx.drawImage(design, -width / 2, -height / 2, width, height); ctx.restore()
+      ctx.save(); ctx.translate(x, y); ctx.rotate(placement.roll * Math.PI / 180); ctx.transform(1, 0, Math.tan(placement.skew * Math.PI / 180), 1, 0, 0); ctx.globalAlpha = placement.opacity / 100; ctx.globalCompositeOperation = placement.blend; drawPerspectiveImage(ctx, design, width, height, placement.pitch, placement.yaw); ctx.restore()
     }
   }
   useEffect(render, [model, design, placement])
@@ -399,6 +438,7 @@ function MockupBench() {
     event.currentTarget.setPointerCapture(event.pointerId)
   }
   const pointerMove = event => {
+    trackZoomOrigin(event, event.currentTarget.parentElement)
     if (!dragging.current) return
     const rect = canvasRef.current.getBoundingClientRect()
     setPlacement(current => ({ ...current, x: Math.max(0, Math.min(100, (event.clientX - rect.left - dragging.current.dx) / rect.width * 100)), y: Math.max(0, Math.min(100, (event.clientY - rect.top - dragging.current.dy) / rect.height * 100)) }))
@@ -407,13 +447,13 @@ function MockupBench() {
     if (!model || !design) return
     render(); const link = document.createElement('a'); link.download = 't-shirt-mockup.png'; link.href = canvasRef.current.toDataURL('image/png'); link.click()
   }
-  const reset = () => { setModel(null); setDesign(null); setModelName(''); setDesignName(''); setPlacement({ x: 50, y: 53, size: 34, rotation: 0, opacity: 92, blend: 'multiply' }); setError(''); if (modelInput.current) modelInput.current.value = ''; if (designInput.current) designInput.current.value = '' }
+  const reset = () => { setModel(null); setDesign(null); setModelName(''); setDesignName(''); setPlacement({ x: 50, y: 53, size: 34, pitch: 0, yaw: 0, roll: 0, skew: 0, opacity: 92, blend: 'multiply' }); setError(''); if (modelInput.current) modelInput.current.value = ''; if (designInput.current) designInput.current.value = '' }
   const controls = <form className="controls mockup-controls" noValidate onSubmit={event => event.preventDefault()}>
     <section><div className="section-head"><span>01</span><h2>Load the layers</h2></div><label htmlFor="mockup-model">Model photograph</label><input ref={modelInput} className="file-input" id="mockup-model" type="file" accept="image/png,image/jpeg,image/webp" onChange={event => loadImage(event.target.files?.[0], setModel, setModelName)}/>{modelName && <p className="help">Loaded: <code>{modelName}</code></p>}<div className="field"><label htmlFor="mockup-design">Design artwork</label><input ref={designInput} className="file-input" id="mockup-design" type="file" accept="image/png,image/jpeg,image/webp" onChange={event => loadImage(event.target.files?.[0], setDesign, setDesignName)}/></div>{designName && <p className="help">Loaded: <code>{designName}</code>. Transparent PNG gives the cleanest result.</p>}</section>
-    <section><div className="section-head"><span>02</span><h2>Place the design</h2></div><p className="help">Drag the artwork directly on the preview, then fine-tune it below.</p><Slider id="design-x" label="Horizontal" hint="left / right" value={Math.round(placement.x)} min={0} max={100} suffix="%" onChange={value => setPlacement(current => ({ ...current, x: value }))}/><Slider id="design-y" label="Vertical" hint="up / down" value={Math.round(placement.y)} min={0} max={100} suffix="%" onChange={value => setPlacement(current => ({ ...current, y: value }))}/><Slider id="design-size" label="Size" hint="artwork width" value={placement.size} min={5} max={90} suffix="%" onChange={value => setPlacement(current => ({ ...current, size: value }))}/><Slider id="design-rotation" label="Rotation" hint="artwork angle" value={placement.rotation} min={-45} max={45} suffix="°" onChange={value => setPlacement(current => ({ ...current, rotation: value }))}/><Slider id="design-opacity" label="Opacity" hint="print density" value={placement.opacity} min={10} max={100} suffix="%" onChange={value => setPlacement(current => ({ ...current, opacity: value }))}/><div className="field"><label htmlFor="design-blend">Blend mode <span>fabric interaction</span></label><select id="design-blend" value={placement.blend} onChange={event => setPlacement(current => ({ ...current, blend: event.target.value }))}><option value="multiply">Multiply · shows folds</option><option value="source-over">Normal · preserves color</option><option value="screen">Screen · for dark shirts</option><option value="overlay">Overlay · stronger contrast</option></select></div></section>
+    <section><div className="section-head"><span>02</span><h2>Place the design</h2></div><p className="help">Drag the artwork on the preview, then match the shirt plane with Pitch, Yaw, Roll, and Skew.</p><Slider id="design-x" label="Horizontal" hint="left / right" value={Math.round(placement.x)} min={0} max={100} suffix="%" onChange={value => setPlacement(current => ({ ...current, x: value }))}/><Slider id="design-y" label="Vertical" hint="up / down" value={Math.round(placement.y)} min={0} max={100} suffix="%" onChange={value => setPlacement(current => ({ ...current, y: value }))}/><Slider id="design-size" label="Size" hint="artwork width" value={placement.size} min={5} max={90} suffix="%" onChange={value => setPlacement(current => ({ ...current, size: value }))}/><Slider id="design-pitch" label="X-axis · Pitch" hint="tilt up / down" value={placement.pitch} min={-60} max={60} suffix="°" onChange={value => setPlacement(current => ({ ...current, pitch: value }))}/><Slider id="design-yaw" label="Y-axis · Yaw" hint="turn left / right" value={placement.yaw} min={-60} max={60} suffix="°" onChange={value => setPlacement(current => ({ ...current, yaw: value }))}/><Slider id="design-roll" label="Z-axis · Roll" hint="spin on the shirt" value={placement.roll} min={-180} max={180} suffix="°" onChange={value => setPlacement(current => ({ ...current, roll: value }))}/><Slider id="design-skew" label="Skew" hint="shear with torso lean" value={placement.skew} min={-30} max={30} suffix="°" onChange={value => setPlacement(current => ({ ...current, skew: value }))}/><Slider id="design-opacity" label="Opacity" hint="print density" value={placement.opacity} min={10} max={100} suffix="%" onChange={value => setPlacement(current => ({ ...current, opacity: value }))}/><div className="field"><label htmlFor="design-blend">Blend mode <span>fabric interaction</span></label><select id="design-blend" value={placement.blend} onChange={event => setPlacement(current => ({ ...current, blend: event.target.value }))}><option value="multiply">Multiply · shows folds</option><option value="source-over">Normal · preserves color</option><option value="screen">Screen · for dark shirts</option><option value="overlay">Overlay · stronger contrast</option></select></div></section>
     {error && <p className="error" role="alert">{error}</p>}<button className="generate" type="button" disabled={!model || !design} onClick={exportMockup}><Download size={18}/>Export Mockup PNG</button>
   </form>
-  const output = <section className="stage mockup-stage" aria-label="T-shirt mockup preview"><div className="mockup-canvas-wrap">{model ? <canvas ref={canvasRef} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={() => { dragging.current = null }} onPointerCancel={() => { dragging.current = null }} aria-label="Mockup canvas. Drag to position the design."/> : <div className="empty"><Layers3 size={38}/><p>Your mockup will appear here.</p><span>Load a model photograph and design artwork.</span></div>}</div><div className="stage-meta"><span>{model ? `${model.naturalWidth} × ${model.naturalHeight} PX` : 'WAITING FOR MODEL'}</span><span>LOCAL COMPOSITE</span></div></section>
+  const output = <section className="stage mockup-stage" aria-label="T-shirt mockup preview"><div className={`mockup-canvas-wrap ${model ? 'has-image' : ''}`}>{model ? <canvas className="zoomable-image" ref={canvasRef} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={() => { dragging.current = null }} onPointerCancel={() => { dragging.current = null }} aria-label="Mockup canvas. Drag to position the design."/> : <div className="empty"><Layers3 size={38}/><p>Your mockup will appear here.</p><span>Load a model photograph and design artwork.</span></div>}</div><div className="stage-meta"><span>{model ? `${model.naturalWidth} × ${model.naturalHeight} PX` : 'WAITING FOR MODEL'}</span><span>LOCAL COMPOSITE</span></div></section>
   return <ToolLayout eyebrow="MOCKUP BENCH · LAYERED COMPOSITE" title="Build a shirt mockup" dek="Two image layers · live placement · local PNG export" accent="mockup" onReset={reset} controls={controls} output={output}/>
 }
 

@@ -13,6 +13,8 @@ The Workshop shell opens on Home and owns navigation between Home, Darkroom, Pri
 
 ## Async flow
 
+Every populated image stage magnifies around the pointer on hover for mouse and other fine-pointer devices without resizing its frame. Touch devices do not activate hover zoom. Mockup Bench suspends magnification while the user drags its canvas so placement remains predictable.
+
 `Generate Image` → disabled busy state → ComfyUI queue submission → bounded history polling → preview and download on success, or persistent inline recovery guidance on failure. While pending, image utilities show a workflow-specific estimated progress bar capped below completion until ComfyUI confirms output; the upscaler identifies its upload and refinement phases. Duplicate submission is blocked while a job is pending. Model/runtime readiness is always shown in a live region immediately beneath the utility's primary generate/build button rather than in the masthead.
 
 ## Model readiness
@@ -37,7 +39,7 @@ Print Enhancer is a separate single-reference image-edit utility based on the of
 
 ## Mockup Bench
 
-Mockup Bench is a browser-only, non-destructive two-layer compositor. The user supplies a model photograph and design artwork, drags or numerically positions the artwork, then controls scale, rotation, opacity, and fabric-oriented blend mode before exporting a PNG. It does not recolor garments; users provide a model photograph with the intended shirt color. Reset clears both local image layers and restores authored placement defaults. No upload or generation service is involved.
+Mockup Bench is a browser-only, non-destructive two-layer compositor. The user supplies a model photograph and design artwork, drags or numerically positions the artwork, then controls scale, X-axis pitch, Y-axis yaw, Z-axis roll, independent skew, opacity, and fabric-oriented blend mode before exporting a PNG. Pitch and yaw use a perspective-projected mesh rather than flat scaling; roll spins the projected result in the screen plane, and skew remains an independent horizontal shear for torso lean. The same transform stack is applied to both the live preview and exported PNG. It does not recolor garments; users provide a model photograph with the intended shirt color. Reset clears both local image layers and restores all transforms to zero. No upload or generation service is involved.
 
 ## Prompt Builder
 
