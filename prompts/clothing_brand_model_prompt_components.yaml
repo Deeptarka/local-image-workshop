@@ -1,0 +1,781 @@
+schema_version: '1.0'
+purpose: Composable prompt vocabulary for generating fashion e-commerce/model images for a clothing brand.
+usage_notes:
+  selection: Choose one or more compatible values from each section. Omit irrelevant fields.
+  prompt_order:
+  - model.demographics
+  - model.skin
+  - model.face
+  - model.hair
+  - garment
+  - styling
+  - pose
+  - expression
+  - accessories
+  - background
+  - lighting
+  - camera
+  - composition
+  - rendering
+  - constraints
+  paired_views: For front/back product sets, keep model identity, garment, background, lighting, camera height, crop, and
+    color treatment identical; change only pose/view.
+  product_accuracy: Use garment.logo_or_print=none and constraints.product_fidelity entries when generating blank mockups.
+model:
+  count:
+  - single_model
+  - two_models
+  - three_models
+  - group
+  gender_presentation:
+  - male
+  - female
+  - androgynous
+  age_group:
+  - '18_24'
+  - '25_34'
+  - '35_44'
+  - '45_54'
+  - 55_plus
+  indian_region_look:
+  - north_indian
+  - south_indian
+  - east_indian
+  - west_indian
+  - central_indian
+  - northeast_indian
+  - pan_indian
+  - region_unspecified
+  regional_inspiration_optional:
+  - punjabi_inspired
+  - kashmiri_inspired
+  - rajasthani_inspired
+  - haryanvi_inspired
+  - uttar_pradesh_inspired
+  - bihari_inspired
+  - bengali_inspired
+  - odia_inspired
+  - assamese_inspired
+  - sikkimese_inspired
+  - arunachal_inspired
+  - manipuri_inspired
+  - meghalayan_inspired
+  - mizoram_inspired
+  - nagaland_inspired
+  - tripura_inspired
+  - gujarati_inspired
+  - marathi_inspired
+  - goan_inspired
+  - madhya_pradesh_inspired
+  - chhattisgarhi_inspired
+  - tamil_inspired
+  - telugu_inspired
+  - kannada_inspired
+  - malayali_inspired
+  - region_neutral
+  body_build:
+    male:
+    - slim
+    - lean
+    - athletic
+    - average
+    - broad_shouldered
+    - muscular
+    - plus_size
+    female:
+    - petite
+    - slim
+    - lean
+    - athletic
+    - average
+    - curvy
+    - plus_size
+    - tall
+  height_impression:
+  - short
+  - average_height
+  - tall
+  skin:
+    tone:
+    - very_light_brown
+    - light_brown
+    - light_medium_brown
+    - medium_brown
+    - warm_medium_brown
+    - golden_brown
+    - olive_brown
+    - tan_brown
+    - deep_brown
+    - dark_brown
+    - very_deep_brown
+    undertone:
+    - warm
+    - neutral
+    - cool
+    - golden
+    - olive
+    - reddish
+    finish:
+    - natural_skin_texture
+    - matte
+    - soft_dewy
+    - sun_kissed
+    details:
+    - none
+    - freckles
+    - beauty_marks
+    - visible_pores
+    - light_acne_texture
+  face:
+    shape:
+    - oval
+    - round
+    - square
+    - rectangular
+    - oblong
+    - heart
+    - diamond
+    - angular
+    jawline:
+    - soft
+    - defined
+    - strong
+    - angular
+    eyes:
+    - almond
+    - round
+    - deep_set
+    - hooded
+    - upturned
+    - downturned
+    eyebrows:
+    - natural
+    - straight
+    - arched
+    - thick
+    - defined
+    nose:
+    - straight
+    - broad
+    - narrow
+    - rounded_tip
+    - prominent
+    lips:
+    - thin
+    - medium
+    - full
+    - defined_cupid_bow
+    male_facial_hair:
+    - clean_shaven
+    - light_stubble
+    - medium_stubble
+    - heavy_stubble
+    - short_boxed_beard
+    - full_beard
+    - trimmed_beard
+    - goatee
+    - mustache_only
+    - beard_with_mustache
+    male_beard_color:
+    - black
+    - dark_brown
+    - salt_and_pepper
+    female_makeup:
+    - no_makeup_look
+    - natural_makeup
+    - minimal_commercial_makeup
+    - soft_glam
+    - matte_makeup
+    - dewy_makeup
+    - bold_editorial_makeup
+  hair:
+    male_style:
+    - buzz_cut
+    - crew_cut
+    - ivy_league
+    - short_crop
+    - textured_crop
+    - caesar_cut
+    - side_part
+    - slick_back
+    - pompadour
+    - quiff
+    - undercut
+    - low_fade
+    - mid_fade
+    - high_fade
+    - taper_fade
+    - curly_short
+    - wavy_short
+    - medium_layered
+    - medium_wavy
+    - shoulder_length
+    - long_straight
+    - long_wavy
+    - man_bun
+    - top_knot
+    - curly_afro_inspired
+    - shaved_head
+    female_style:
+    - pixie_cut
+    - short_bob
+    - chin_length_bob
+    - lob
+    - straight_should_length
+    - straight_long
+    - wavy_should_length
+    - long_waves
+    - loose_curls
+    - tight_curls
+    - layered_long
+    - center_part_straight
+    - side_part_straight
+    - center_part_wavy
+    - high_ponytail
+    - low_ponytail
+    - messy_ponytail
+    - high_bun
+    - low_bun
+    - messy_bun
+    - braided_ponytail
+    - single_braid
+    - two_braids
+    - fishtail_braid
+    - half_up_half_down
+    - wet_look
+    - natural_voluminous
+    color:
+    - natural_black
+    - soft_black
+    - dark_brown
+    - medium_brown
+    - salt_and_pepper
+    texture:
+    - straight
+    - slightly_wavy
+    - wavy
+    - curly
+    - coily
+    finish:
+    - natural
+    - neat
+    - textured
+    - sleek
+    - slightly_messy
+garment:
+  category:
+  - male_classic_tshirt
+  - male_full_sleeve_tshirt
+  - male_v_neck_tshirt
+  - male_polo_tshirt
+  - male_sleeveless_tshirt
+  - male_raglan_tshirt
+  - female_classic_tshirt
+  - female_crop_tshirt
+  - female_tank_top
+  - female_baby_tee
+  - unisex_basic_tshirt
+  - unisex_oversized_tshirt
+  - unisex_oversized_raglan_tshirt
+  - unisex_hoodie
+  - unisex_oversized_hoodie
+  - unisex_sweatshirt
+  - kids_tshirt
+  - kids_hoodie
+  - baby_romper
+  color:
+  - pure_white
+  - off_white
+  - cream
+  - black
+  - charcoal
+  - heather_grey
+  - light_grey
+  - navy
+  - royal_blue
+  - sky_blue
+  - teal
+  - forest_green
+  - olive
+  - sage
+  - red
+  - maroon
+  - burgundy
+  - orange
+  - mustard
+  - yellow
+  - lavender
+  - purple
+  - pink
+  - dusty_pink
+  - beige
+  - brown
+  print_state:
+  - blank
+  - front_print
+  - back_print
+  - front_and_back_print
+  tuck:
+  - untucked
+  - full_tuck
+  - front_tuck
+  layering:
+  - none
+  - open_shirt_over_tshirt
+  - jacket_over_tshirt
+bottomwear:
+  type:
+  - not_visible
+  - blue_jeans
+  - black_jeans
+  - white_jeans
+  - straight_jeans
+  - wide_leg_jeans
+  - chinos
+  - tailored_trousers
+  - cargo_pants
+  - joggers
+  - shorts
+  - denim_shorts
+  - skirt
+  - midi_skirt
+  - wide_leg_trousers
+  - leggings
+  color:
+  - black
+  - white
+  - blue_denim
+  - light_blue_denim
+  - dark_blue_denim
+  - beige
+  - khaki
+  - olive
+  - grey
+  - navy
+  - brown
+style_direction:
+- clean_ecommerce
+- minimalist
+- premium_basics
+- streetwear
+- urban_casual
+- smart_casual
+- athleisure
+- sporty
+- youthful
+- contemporary_indian
+- luxury_minimal
+- editorial_fashion
+- catalogue
+- lookbook
+- lifestyle
+- summer_casual
+- monochrome
+- retro_90s
+- y2k
+- skater
+- college_casual
+- travel_casual
+pose:
+  primary_view:
+  - front
+  - back
+  - left_side_profile
+  - right_side_profile
+  - front_three_quarter_left
+  - front_three_quarter_right
+  - back_three_quarter_left
+  - back_three_quarter_right
+  body:
+  - standing_straight
+  - relaxed_standing
+  - contrapposto
+  - feet_shoulder_width
+  - one_foot_forward
+  - walking_toward_camera
+  - walking_away_from_camera
+  - walking_left_to_right
+  - walking_right_to_left
+  - leaning_against_wall
+  - seated_on_stool
+  - seated_on_chair
+  - arms_at_sides
+  - hands_in_pockets
+  - one_hand_in_pocket
+  - arms_crossed
+  - hands_behind_back
+  - hands_on_hips
+  - one_hand_on_hip
+  - adjusting_sleeve
+  - adjusting_hem
+  - touching_collar
+  - looking_over_shoulder
+  head_direction:
+  - looking_at_camera
+  - looking_left
+  - looking_right
+  - looking_up_slightly
+  - looking_down_slightly
+  - looking_away
+  - over_shoulder_toward_camera
+  product_display_pose:
+  - neutral_front_product_view
+  - neutral_back_product_view
+  - neutral_left_side_product_view
+  - neutral_right_side_product_view
+  - arms_slightly_away_from_torso
+  - hands_clear_of_garment
+  - straight_posture_for_fit_visibility
+expression:
+- neutral
+- calm
+- confident
+- subtle_smile
+- friendly_smile
+- broad_smile
+- serious_editorial
+- relaxed
+- playful
+- thoughtful
+- looking_candid
+accessories:
+  eyewear:
+  - none
+  - aviator_sunglasses
+  - wayfarer_sunglasses
+  - round_sunglasses
+  - rectangular_sunglasses
+  - clear_glasses
+  headwear:
+  - none
+  - baseball_cap
+  - dad_cap
+  - bucket_hat
+  - beanie
+  - wide_brim_hat
+  jewelry:
+  - none
+  - minimal_chain
+  - silver_chain
+  - gold_chain
+  - pendant
+  - stud_earrings
+  - hoop_earrings
+  - small_jhumka_inspired_earrings
+  - minimal_bracelet
+  - bangle
+  - ring
+  - multiple_rings
+  wrist:
+  - none
+  - minimal_watch
+  - sport_watch
+  - smartwatch
+  - bracelet
+  bags:
+  - none
+  - tote_bag
+  - crossbody_bag
+  - backpack
+  - small_handbag
+  other:
+  - none
+  - scarf
+  - bandana
+  - belt
+  - headphones_around_neck
+  rule_for_product_shots: Prefer none/minimal accessories; accessories must not cover the t-shirt print area, neckline, sleeves,
+    or hem.
+footwear:
+- not_visible
+- white_sneakers
+- black_sneakers
+- retro_sneakers
+- running_shoes
+- canvas_sneakers
+- loafers
+- boots
+- sandals
+- heels
+- flats
+background:
+  studio:
+  - pure_white_seamless
+  - off_white_seamless
+  - light_grey_seamless
+  - mid_grey_seamless
+  - dark_grey_seamless
+  - black_seamless
+  - beige_seamless
+  - warm_cream_seamless
+  - pastel_blue_seamless
+  - pastel_pink_seamless
+  - pastel_green_seamless
+  - solid_color_backdrop
+  - subtle_gradient_backdrop
+  - concrete_texture_wall
+  - plaster_texture_wall
+  indoor_lifestyle:
+  - minimal_white_loft
+  - modern_apartment
+  - industrial_loft
+  - minimal_cafe
+  - fashion_studio
+  - art_gallery
+  - concrete_interior
+  - wood_panel_interior
+  - sunlit_room
+  - urban_stairwell
+  outdoor:
+  - clean_city_street
+  - modern_architecture
+  - concrete_wall
+  - brick_wall
+  - rooftop
+  - urban_alley
+  - park
+  - greenery
+  - beach
+  - promenade
+  - college_campus
+  - minimal_building_facade
+  india_lifestyle:
+  - modern_indian_city_street
+  - kolkata_heritage_street
+  - mumbai_urban_street
+  - delhi_modern_architecture
+  - bengaluru_cafe_district
+  - chennai_modern_street
+  - hyderabad_modern_architecture
+  - jaipur_minimal_heritage_wall
+  - goa_coastal_setting
+  - kerala_tropical_setting
+  background_behavior:
+  - sharp
+  - slightly_soft
+  - shallow_depth_of_field
+  - strong_bokeh
+  - clean_uncluttered
+lighting:
+  studio:
+  - soft_even_studio
+  - large_softbox_front
+  - large_softbox_45_degree
+  - two_softbox_even
+  - beauty_dish_soft
+  - high_key
+  - low_key
+  - soft_window_simulation
+  - catalogue_flat_even
+  - soft_rim_light
+  natural:
+  - soft_window_light
+  - overcast_daylight
+  - open_shade
+  - golden_hour
+  - morning_light
+  - late_afternoon_light
+  - soft_backlight
+  - diffused_sunlight
+  contrast:
+  - low
+  - medium
+  - high
+  shadow:
+  - minimal
+  - soft
+  - defined
+  - dramatic
+  white_balance:
+  - neutral
+  - slightly_warm
+  - slightly_cool
+camera:
+  shot_size:
+  - headshot
+  - chest_up
+  - waist_up
+  - three_quarter_body
+  - knee_up
+  - full_body
+  - garment_closeup
+  - detail_closeup
+  angle:
+  - eye_level
+  - slightly_low
+  - slightly_high
+  - straight_on
+  lens_look:
+  - 35mm_environmental
+  - 50mm_natural
+  - 70mm_commercial
+  - 85mm_portrait
+  - 105mm_detail
+  orientation:
+  - portrait
+  - landscape
+  - square
+  aspect_ratio:
+  - '1:1'
+  - '4:5'
+  - '3:4'
+  - '2:3'
+  - '9:16'
+  - '16:9'
+  distance:
+  - close
+  - medium
+  - far_enough_for_full_body
+  focus:
+  - face_and_garment_sharp
+  - garment_priority
+  - full_model_sharp
+  - shallow_depth_of_field
+  camera_height:
+  - chest_height
+  - eye_height
+  - waist_height
+composition:
+  placement:
+  - centered
+  - slightly_left
+  - slightly_right
+  headroom:
+  - tight
+  - standard
+  - generous
+  negative_space:
+  - none
+  - left
+  - right
+  - above
+  - both_sides
+  crop_rules:
+  - do_not_crop_head
+  - do_not_crop_hands
+  - do_not_crop_garment
+  - do_not_crop_feet
+  - keep_full_tshirt_visible
+  - keep_sleeves_fully_visible
+rendering:
+  realism:
+  - photorealistic
+  - high_end_commercial_photography
+  - natural_editorial_photography
+  detail:
+  - high_detail
+  - visible_fabric_texture
+  - natural_skin_texture
+  - realistic_hair_strands
+  retouching:
+  - minimal
+  - clean_commercial
+  - natural_skin_retouch
+  - high_end_fashion
+  color_grade:
+  - neutral_product_accurate
+  - clean_bright
+  - warm_lifestyle
+  - cool_editorial
+  - cinematic_subtle
+  resolution_intent:
+  - web_catalogue
+  - marketplace_listing
+  - social_media
+  - print_campaign
+  - high_resolution_master
+paired_product_set:
+  recommended_views:
+  - front
+  - back
+  - left_side_profile
+  - right_side_profile
+  - front_three_quarter_left
+  - back_three_quarter_right
+  minimum_front_back_set:
+    image_1: neutral_front_product_view
+    image_2: neutral_back_product_view
+  consistency_lock:
+  - same_model_identity
+  - same_face
+  - same_hair
+  - same_body_proportions
+  - same_garment_cut
+  - same_garment_color
+  - same_fabric
+  - same_background
+  - same_lighting
+  - same_camera_height
+  - same_lens_look
+  - same_crop
+  - same_white_balance
+constraints:
+  product_fidelity:
+  - preserve_exact_tshirt_color
+  - preserve_exact_neckline
+  - preserve_exact_sleeve_length
+  - preserve_exact_fit_and_length
+  - preserve_fabric_texture
+  - tshirt_front_fully_visible
+  - tshirt_back_fully_visible
+  - no_accessory_covering_print_area
+  - no_hair_covering_back_print_area
+  - natural_realistic_fabric_folds
+  anatomy_quality:
+  - realistic_hands
+  - five_fingers_per_hand
+  - natural_limbs
+  - natural_body_proportions
+  - symmetrical_eyes
+  - realistic_teeth
+  avoid:
+  - text
+  - watermark
+  - random_logo
+  - brand_logo
+  - unrequested_graphics
+  - garbled_typography
+  - extra_fingers
+  - missing_fingers
+  - fused_fingers
+  - extra_limbs
+  - duplicate_person
+  - distorted_face
+  - asymmetrical_body
+  - plastic_skin
+  - over_smoothed_skin
+  - overexposed_white_tshirt
+  - blown_highlights
+  - color_cast_on_white_tshirt
+  - busy_background
+  - garment_occlusion
+  - cropped_garment
+  - extreme_pose
+  - exaggerated_muscles
+  - unrealistic_body_shape
+prompt_templates:
+  generic: '{model_age} {indian_region_look} {gender_presentation} model, {skin_tone} skin with {undertone} undertone, {face_shape}
+    face, {facial_hair_or_makeup}, {hair_style} {hair_color} hair, wearing a {garment_color} {fit} {garment_category} with
+    {sleeve} and {neckline}, {fabric}, styled with {bottomwear} and {accessories}, {primary_view}, {body_pose}, {head_direction},
+    {expression} expression, {background}, {lighting}, {shot_size}, {camera_angle}, {lens_look}, {realism}, {color_grade}.'
+  clean_ecommerce_front: Indian {gender_presentation} fashion model, {skin_tone} skin, {hair_style}, wearing a pristine {garment_color}
+    {garment_category}, {fit}, {sleeve}, {neckline}, blank with no logo or print. Neutral front product view, arms slightly
+    away from torso, hands clear of garment, entire t-shirt visible. {background}, soft even studio lighting, eye-level straight-on
+    camera, {shot_size}, {lens_look}, photorealistic high-end e-commerce photography, accurate garment color and fabric texture.
+  clean_ecommerce_back: Same Indian {gender_presentation} model and identical styling as the front image, wearing the exact
+    same {garment_color} {garment_category}. Neutral back product view, straight posture, arms slightly away from torso, hair
+    and accessories not covering the back of the garment, entire back panel and sleeves visible. {background}, identical soft
+    even studio lighting, camera height, framing, lens, white balance and exposure as front image, photorealistic high-end
+    e-commerce photography.
+  negative_prompt: '{avoid}'
+compatibility_rules:
+- male_facial_hair applies only when gender_presentation=male.
+- female_makeup is primarily intended when gender_presentation=female; omit if not wanted.
+- female_crop_t_shirt and female_crop_top are intended for female styling unless deliberately creating gender-neutral fashion.
+- polo_collar pairs naturally with polo_t_shirt; henley_neck pairs naturally with henley.
+- For back-view product images, avoid long loose hair unless tied up or moved clear of the garment.
+- For blank apparel mockups, use logo_or_print=none and avoid jewelry/bags that overlap the garment.
+- For pure_white garments, use off_white/light_grey backgrounds or controlled edge lighting if silhouette separation is needed.
+- For marketplace/e-commerce sets, favor neutral poses, minimal accessories, neutral product-accurate color grade, and 50mm-85mm
+  lens looks.
+- Avoid combining mutually exclusive pose directions or multiple conflicting hairstyles in one prompt.

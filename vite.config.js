@@ -5,13 +5,15 @@ import path from 'node:path'
 
 const ENV_PATH = path.resolve('.env')
 const PROMPT_DIRECTORY = path.resolve('prompts')
+const MODEL_PROMPT_YAML = path.join(PROMPT_DIRECTORY, 'clothing_brand_model_prompt_components.yaml')
+const MODEL_PROMPT_EXPANDER = path.join(PROMPT_DIRECTORY, '__prompt-expander.md')
 const DEFAULT_PROMPT_PRESETS = 'animation-image.md,realistic-image.md,vector-print.md'
 const DEFAULTS = {
   COMFYUI_URL: 'http://127.0.0.1:8188',
   OLLAMA_URL: 'http://127.0.0.1:11434',
   OLLAMA_MODEL: 'qwen3.5:0.8b',
   PROMPT_PRESETS: DEFAULT_PROMPT_PRESETS,
-  UTILITY_ORDER: 'darkroom,print,print-enhance,mockup,prompt-builder,upscaler,anime'
+  UTILITY_ORDER: 'darkroom,print,print-enhance,mockup,model-studio,prompt-builder,upscaler,anime'
 }
 const ALLOWED_KEYS = Object.keys(DEFAULTS)
 let runtimeSettings = { ...DEFAULTS }
@@ -49,7 +51,7 @@ async function saveSettings(next) {
   const clean = { ...DEFAULTS }
   for (const key of ALLOWED_KEYS) if (typeof next[key] === 'string' && next[key].trim()) clean[key] = next[key].trim()
   new URL(clean.COMFYUI_URL); new URL(clean.OLLAMA_URL)
-  const validUtilities = ['darkroom', 'print', 'print-enhance', 'mockup', 'prompt-builder', 'upscaler', 'anime']
+  const validUtilities = ['darkroom', 'print', 'print-enhance', 'mockup', 'model-studio', 'prompt-builder', 'upscaler', 'anime']
   const requestedOrder = clean.UTILITY_ORDER.split(',').map(item => item.trim()).filter(item => validUtilities.includes(item))
   clean.UTILITY_ORDER = [...new Set([...requestedOrder, ...validUtilities])].join(',')
   const contents = `${ALLOWED_KEYS.map(key => `${key}=${JSON.stringify(clean[key])}`).join('\n')}\n`
@@ -70,6 +72,28 @@ function sendJson(res, status, value) {
   res.statusCode = status
   res.setHeader('content-type', 'application/json; charset=utf-8')
   res.end(JSON.stringify(value))
+}
+
+function parsePromptVocabulary(source) {
+  const result = {}
+  const stack = []
+  for (const rawLine of source.split(/\r?\n/)) {
+    if (!rawLine.trim() || rawLine.trimStart().startsWith('#')) continue
+    const indent = rawLine.length - rawLine.trimStart().length
+    const keyMatch = rawLine.trim().match(/^([a-zA-Z0-9_]+):(?:\s.*)?$/)
+    if (keyMatch) {
+      while (stack.length && stack.at(-1).indent >= indent) stack.pop()
+      stack.push({ indent, key: keyMatch[1] })
+      continue
+    }
+    const valueMatch = rawLine.trim().match(/^-\s+(.+)$/)
+    if (!valueMatch || !stack.length) continue
+    const pathKey = stack.map(item => item.key).join('.')
+    if (pathKey.startsWith('prompt_templates') || pathKey === 'compatibility_rules') continue
+    const value = valueMatch[1].replace(/^['"]|['"]$/g, '')
+    if (!value.includes('{')) (result[pathKey] ||= []).push(value)
+  }
+  return result
 }
 
 function localTransport() {
@@ -104,6 +128,35 @@ function localTransport() {
         }))
         return sendJson(res, 200, { presets })
       } catch (error) { return sendJson(res, 500, { error: `Could not load prompt presets: ${error.message}` }) }
+    })
+
+    server.middlewares.use('/api/model-prompt-schema', async (req, res) => {
+      if (req.method !== 'GET') return sendJson(res, 405, { error: 'Method not allowed' })
+      try {
+        const source = await readFile(MODEL_PROMPT_YAML, 'utf8')
+        return sendJson(res, 200, { fields: parsePromptVocabulary(source) })
+      } catch (error) { return sendJson(res, 500, { error: `Could not load model prompt options: ${error.message}` }) }
+    })
+
+    server.middlewares.use('/api/expand-model-prompt', async (req, res) => {
+      if (req.method !== 'POST') return sendJson(res, 405, { error: 'Method not allowed' })
+      try {
+        const payload = JSON.parse((await readBody(req)).toString('utf8') || '{}')
+        const brokenPrompt = typeof payload.brokenPrompt === 'string' ? payload.brokenPrompt.trim() : ''
+        if (!brokenPrompt) return sendJson(res, 400, { error: 'Build the broken prompt first.' })
+        if (brokenPrompt.length > 6000) return sendJson(res, 400, { error: 'The broken prompt is too long.' })
+        const systemPrompt = (await readFile(MODEL_PROMPT_EXPANDER, 'utf8')).trim()
+        const upstream = await fetch(`${runtimeSettings.OLLAMA_URL.replace(/\/$/, '')}/api/chat`, {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ model: runtimeSettings.OLLAMA_MODEL, stream: false, think: false, messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: brokenPrompt }], options: { temperature: 0.45 } }),
+          signal: AbortSignal.timeout(120000)
+        })
+        const result = await upstream.json().catch(() => ({}))
+        if (!upstream.ok) throw new Error(result.error || `Ollama returned HTTP ${upstream.status}`)
+        const prompt = result.message?.content?.trim()
+        if (!prompt) throw new Error('Ollama returned an empty prompt.')
+        return sendJson(res, 200, { prompt })
+      } catch (error) { return sendJson(res, 502, { error: `Could not expand the model prompt: ${error.message}` }) }
     })
 
     server.middlewares.use('/api/expand-prompt', async (req, res) => {

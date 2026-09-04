@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { Aperture, ArrowDown, ArrowUp, ArrowUpRight, Bot, Check, ChevronDown, Copy, Download, Home as HomeIcon, Image as ImageIcon, Layers3, Palette, RefreshCw, RotateCcw, Save, Settings, Shirt, Sparkles, WandSparkles } from 'lucide-react'
+import { Aperture, ArrowDown, ArrowUp, ArrowUpRight, Bot, Camera, Check, ChevronDown, Copy, Download, Home as HomeIcon, Image as ImageIcon, Layers3, Palette, RefreshCw, RotateCcw, Save, Settings, Shirt, Sparkles, WandSparkles } from 'lucide-react'
 import './styles.css'
 import './darkroom-updates.css'
 
@@ -11,13 +11,14 @@ const DEFAULT_ENV = {
   OLLAMA_URL: 'http://127.0.0.1:11434',
   OLLAMA_MODEL: 'qwen3.5:0.8b',
   PROMPT_PRESETS: 'animation-image.md,realistic-image.md,vector-print.md',
-  UTILITY_ORDER: 'darkroom,print,print-enhance,mockup,prompt-builder,upscaler,anime'
+  UTILITY_ORDER: 'darkroom,print,print-enhance,mockup,model-studio,prompt-builder,upscaler,anime'
 }
 const UTILITY_DEFINITIONS = [
   { id: 'darkroom', title: 'Darkroom', kicker: 'SCENES · ATMOSPHERE · DETAIL', icon: Aperture, specimen: 'LIGHT / GRAIN', copy: 'Build atmospheric images from a positive and negative prompt, with flexible framing and optional LoRA control.', action: 'Develop an image' },
   { id: 'print', title: 'Print Studio', kicker: 'LETTERING · APPAREL · INK', icon: Shirt, specimen: 'TYPE / INK', copy: 'Compose lettering-aware graphics for apparel with screen-print treatments, controlled ink counts, and print-oriented prompting.', action: 'Pull a print' },
   { id: 'print-enhance', title: 'Print Enhancer', kicker: 'REFERENCE · EDIT · REFINE', icon: WandSparkles, specimen: 'IMAGE / EDIT', copy: 'Upload existing artwork and describe the exact visual enhancement or production-minded change you want to make.', action: 'Enhance artwork' },
   { id: 'mockup', title: 'Mockup Bench', kicker: 'MODEL · ARTWORK · EXPORT', icon: Layers3, specimen: 'PLACE / BLEND', copy: 'Place a design onto a model photograph, tune its position and print blend, then export a finished mockup.', action: 'Build a mockup' },
+  { id: 'model-studio', title: 'Model Studio', kicker: 'CAST · GARMENT · CAMPAIGN', icon: Camera, specimen: 'STYLE / SHOOT', copy: 'Cast a fashion model, style the garment, expand the brief locally, and generate campaign-ready imagery.', action: 'Style a campaign' },
   { id: 'prompt-builder', title: 'Prompt Builder', kicker: 'ROUGH IDEA · POLISHED PROMPT', icon: Bot, specimen: 'IDEA / DETAIL', copy: 'Turn one quick idea into a detailed image prompt using a local Ollama model, then copy it into either image utility.', action: 'Build a prompt' },
   { id: 'upscaler', title: 'Image Upscaler', kicker: 'ENLARGE · REFINE · RESTORE', icon: Layers3, specimen: 'SCALE / DETAIL', copy: 'Enlarge an existing image with Real-ESRGAN, then refine texture and detail through Z-Image Turbo.', action: 'Upscale an image' },
   { id: 'anime', title: 'Anime Maker', kicker: 'CHARACTERS · WORLDS · COLOR', icon: Palette, specimen: 'LINE / COLOR', copy: 'Create expressive anime artwork with dedicated positive and negative prompting, framing, and sampling controls.', action: 'Create anime art' }
@@ -466,6 +467,88 @@ function AnimeMaker() {
   </form>} output={<><OutputStage imageUrl={imageUrl} busy={busy} prompt={prompt} frame={frame} label={frame.ratio} filename="anima-base-artwork.png"/><ModelSetup required={ANIMA_REQUIRED} {...assetState} intro="Install the official Anima Base model, Qwen 0.6B text encoder, and Qwen Image VAE in their exact model folders."/></>}/>
 }
 
+const MODEL_FIELD_GROUPS = [
+  { title: 'Cast', note: 'Who wears the garment', fields: [['model.gender_presentation', 'Presentation'], ['model.age_group', 'Age'], ['model.indian_region_look', 'Indian casting direction'], ['model.body_build.male', 'Build (male)'], ['model.body_build.female', 'Build (female)'], ['model.skin.tone', 'Skin tone'], ['model.skin.undertone', 'Undertone'], ['model.face.male_facial_hair', 'Facial hair'], ['model.face.female_makeup', 'Makeup'], ['model.hair.male_style', 'Hair (male)'], ['model.hair.female_style', 'Hair (female)'], ['model.hair.color', 'Hair color']] },
+  { title: 'Garment', note: 'The hero product', fields: [['garment.category', 'Product'], ['garment.color', 'Color'], ['garment.print_state', 'Print placement'], ['garment.tuck', 'Tuck'], ['garment.layering', 'Layering'], ['bottomwear.type', 'Bottomwear'], ['bottomwear.color', 'Bottomwear color']] },
+  { title: 'Shoot', note: 'Pose, place, and camera', fields: [['style_direction', 'Direction'], ['pose.primary_view', 'View'], ['pose.body', 'Pose'], ['pose.head_direction', 'Head direction'], ['expression', 'Expression'], ['background.studio', 'Studio background'], ['lighting.studio', 'Studio lighting'], ['camera.shot_size', 'Shot size'], ['camera.angle', 'Camera angle'], ['camera.lens_look', 'Lens'], ['camera.orientation', 'Orientation'], ['camera.aspect_ratio', 'Aspect ratio'], ['composition.negative_space', 'Negative space'], ['rendering.realism', 'Realism'], ['rendering.color_grade', 'Color grade'], ['rendering.resolution_intent', 'Output use']] }
+]
+
+const humanize = value => String(value || '').replaceAll('_', ' ').replace(/\b\w/g, letter => letter.toUpperCase())
+
+function ModelStudio({ env }) {
+  const assets = useComfyAssets(Z_REQUIRED)
+  const [schema, setSchema] = useState({}), [selected, setSelected] = useState({}), [tab, setTab] = useState('style')
+  const [brokenPrompt, setBrokenPrompt] = useState(''), [finalPrompt, setFinalPrompt] = useState(''), [imageUrl, setImageUrl] = useState('')
+  const [expanding, setExpanding] = useState(false), [generating, setGenerating] = useState(false), [error, setError] = useState(''), [status, setStatus] = useState('Loading the wardrobe…')
+  const [selectionRevision, setSelectionRevision] = useState(0), [capturedRevision, setCapturedRevision] = useState(-1)
+  const progress = useEstimatedProgress(generating, 34)
+  const abort = useRef(false)
+  useEffect(() => {
+    fetch('/api/model-prompt-schema').then(response => responseJson(response, 'The model prompt vocabulary could not be loaded.')).then(payload => {
+      const fields = payload.fields || {}; setSchema(fields)
+      const defaults = {}
+      MODEL_FIELD_GROUPS.flatMap(group => group.fields).forEach(([key]) => { if (fields[key]?.length) defaults[key] = fields[key][0] })
+      Object.assign(defaults, { 'model.gender_presentation': 'female', 'model.age_group': '25_34', 'model.indian_region_look': 'pan_indian', 'garment.category': 'female_classic_tshirt', 'garment.color': 'pure_white', 'garment.print_state': 'blank', 'style_direction': 'clean_ecommerce', 'pose.primary_view': 'front', 'pose.body': 'relaxed_standing', 'background.studio': 'light_grey_seamless', 'lighting.studio': 'soft_even_studio', 'camera.shot_size': 'three_quarter_body', 'camera.lens_look': '70mm_commercial', 'camera.orientation': 'portrait', 'camera.aspect_ratio': '4:5', 'rendering.realism': 'high_end_commercial_photography', 'rendering.color_grade': 'neutral_product_accurate', 'rendering.resolution_intent': 'web_catalogue' })
+      setSelected(defaults); setStatus('Ready to style')
+    }).catch(caught => { setError(caught.message); setStatus('Wardrobe unavailable') })
+  }, [])
+  const visibleFields = fields => fields.filter(([key]) => {
+    if (key.includes('.male') && selected['model.gender_presentation'] !== 'male') return false
+    if (key.includes('.female') && selected['model.gender_presentation'] !== 'female') return false
+    return schema[key]?.length
+  })
+  const optionsFor = key => {
+    const options = schema[key] || []
+    if (key !== 'garment.category') return options
+    const presentation = selected['model.gender_presentation']
+    if (presentation === 'male') return options.filter(value => value.startsWith('male_') || value.startsWith('unisex_'))
+    if (presentation === 'female') return options.filter(value => value.startsWith('female_') || value.startsWith('unisex_'))
+    return options.filter(value => value.startsWith('unisex_'))
+  }
+  const updateSelection = (key, value) => {
+    setSelected(current => {
+      if (key !== 'model.gender_presentation') return { ...current, [key]: value }
+      const compatibleProducts = (schema['garment.category'] || []).filter(product => value === 'male' ? product.startsWith('male_') || product.startsWith('unisex_') : value === 'female' ? product.startsWith('female_') || product.startsWith('unisex_') : product.startsWith('unisex_'))
+      return { ...current, [key]: value, 'garment.category': compatibleProducts.includes(current['garment.category']) ? current['garment.category'] : compatibleProducts[0] || '' }
+    })
+    setSelectionRevision(revision => revision + 1)
+  }
+  const createBrokenPrompt = () => {
+    const prompt = MODEL_FIELD_GROUPS.flatMap(group => visibleFields(group.fields)).map(([key, label]) => selected[key] ? `${label}: ${humanize(selected[key])}` : '').filter(Boolean).join(', ')
+    setBrokenPrompt(prompt); setCapturedRevision(selectionRevision); setFinalPrompt(''); setImageUrl(''); setError(''); setStatus('Broken prompt captured'); setTab('prompt')
+  }
+  const expandPrompt = async () => {
+    if (!brokenPrompt || expanding) return
+    setExpanding(true); setError(''); setStatus('Ollama is refining the brief…')
+    try {
+      const response = await fetch('/api/expand-model-prompt', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ brokenPrompt }) })
+      const payload = await responseJson(response, 'Ollama returned an empty response.')
+      if (!response.ok) throw new Error(payload.error || 'The final prompt could not be generated.')
+      setFinalPrompt(payload.prompt); setStatus('Final prompt ready to edit')
+    } catch (caught) { setError(caught.message); setStatus('Could not expand prompt') } finally { setExpanding(false) }
+  }
+  const generateImage = async () => {
+    if (!finalPrompt.trim() || generating || !assets.ready) return
+    const ratio = selected['camera.aspect_ratio'] || '4:5', orientation = selected['camera.orientation'] || 'portrait'
+    const frame = { ...ratioDimensions(ratio, orientation), ratio }
+    setGenerating(true); setError(''); setStatus('Sending the campaign to ComfyUI…'); abort.current = false
+    try {
+      await runWorkflow(zImageWorkflow({ prompt: finalPrompt.trim(), negativePrompt: 'text, watermark, random logo, unrequested graphics, extra fingers, missing fingers, fused fingers, extra limbs, duplicate person, distorted face, plastic skin, warped clothing, incorrect garment color, garment occlusion, cropped garment, busy background', steps: 9, ...frame, seed: -1, loraName: 'disabled', loraStrength: 1, outputPrefix: 'model-studio/campaign' }), '11', setStatus, setImageUrl, abort)
+      setStatus('Campaign image ready')
+    } catch (caught) { setError(caught.message); setStatus('Could not generate image') } finally { setGenerating(false) }
+  }
+  const reset = () => { setBrokenPrompt(''); setFinalPrompt(''); setImageUrl(''); setError(''); setTab('style'); setCapturedRevision(-1); setSelectionRevision(0); setStatus('Ready to style'); assets.setError(''); assets.loadAssets() }
+  const tabs = [['style', '1 · Style'], ['prompt', '2 · Prompt'], ['image', '3 · Image']]
+  const frame = { ...ratioDimensions(selected['camera.aspect_ratio'] || '4:5', selected['camera.orientation'] || 'portrait'), ratio: selected['camera.aspect_ratio'] || '4:5' }
+  return <main className="model-studio"><header className="masthead"><div><p className="eyebrow">MODEL STUDIO · CAMPAIGN IMAGERY</p><h1>Style the whole shot.</h1><p className="dek">YAML wardrobe · {env.OLLAMA_MODEL || DEFAULT_ENV.OLLAMA_MODEL} · Z-Image Turbo</p></div><button type="button" className="page-reset" onClick={reset} disabled={expanding || generating}><RotateCcw size={15}/>Reset</button></header>
+    <div className="studio-shell"><div className="studio-tabs" role="tablist" aria-label="Model image workflow">{tabs.map(([id, label]) => <button key={id} id={`studio-tab-${id}`} type="button" role="tab" aria-selected={tab === id} aria-controls={`studio-panel-${id}`} tabIndex={tab === id ? 0 : -1} onClick={() => setTab(id)}>{label}{id === 'prompt' && brokenPrompt && <Check size={14}/>} {id === 'image' && imageUrl && <Check size={14}/>}</button>)}</div>
+      <section id={`studio-panel-${tab}`} role="tabpanel" aria-labelledby={`studio-tab-${tab}`} className="studio-panel">
+        {tab === 'style' && <div className="studio-style"><div className="style-intro"><span>YAML / LIVE VOCABULARY</span><h2>Choose only what matters to this shot.</h2><p>These controls are loaded from <code>clothing_brand_model_prompt_components.yaml</code>. Your prompt is captured only when you use the button below.</p></div><div className="option-groups">{MODEL_FIELD_GROUPS.map(group => <fieldset key={group.title} className="option-group"><legend>{group.title}<small>{group.note}</small></legend><div className="option-grid">{visibleFields(group.fields).map(([key, label]) => <label key={key}>{label}<select value={selected[key] || ''} onChange={event => updateSelection(key, event.target.value)}><option value="">Omit</option>{optionsFor(key).map(value => <option key={value} value={value}>{humanize(value)}</option>)}</select></label>)}</div></fieldset>)}</div><div className="sticky-action"><div><strong>{capturedRevision === selectionRevision && brokenPrompt ? 'Prompt is up to date' : brokenPrompt ? 'Selections changed' : 'Ready to capture'}</strong><span>{brokenPrompt && capturedRevision !== selectionRevision ? 'The existing broken prompt stays unchanged until rebuilt.' : 'Creates a fixed keyword brief from the current choices.'}</span></div><button className="generate" type="button" onClick={createBrokenPrompt} disabled={!Object.keys(schema).length}><Sparkles size={18}/>{brokenPrompt ? 'Rebuild Broken Prompt' : 'Generate Broken Prompt'}</button></div></div>}
+        {tab === 'prompt' && <div className="prompt-workbench"><section className="prompt-box locked"><div className="prompt-box-head"><span>BROKEN PROMPT · READ ONLY</span><small>{brokenPrompt ? `${brokenPrompt.split(',').length} attributes` : 'Not built'}</small></div><div className="broken-copy" aria-live="polite">{brokenPrompt || 'Return to Style and generate a broken prompt from your selections.'}</div><button className="generate" type="button" onClick={expandPrompt} disabled={!brokenPrompt || expanding}>{expanding ? <><span className="spinner"/>Expanding with Ollama…</> : <><Bot size={18}/>{finalPrompt ? 'Regenerate Final Prompt' : 'Generate Final Prompt'}</>}</button></section><section className="prompt-box final"><div className="prompt-box-head"><label htmlFor="model-final-prompt">FINAL PROMPT · EDITABLE</label><small>{finalPrompt.length} characters</small></div><textarea className="resize-none" id="model-final-prompt" rows="16" value={finalPrompt} onChange={event => setFinalPrompt(event.target.value)} placeholder="Your polished, editable prompt will appear here." aria-describedby="model-final-help"/><p id="model-final-help" className="help">Fine-tune any photography or garment detail before generating.</p><button className="generate" type="button" onClick={() => setTab('image')} disabled={!finalPrompt.trim()}><ArrowUpRight size={18}/>Review & Generate Image</button></section></div>}
+        {tab === 'image' && <div className="studio-image"><section className="image-prompt-panel"><label htmlFor="model-image-prompt">Final image prompt</label><textarea className="resize-none" id="model-image-prompt" rows="12" value={finalPrompt} onChange={event => setFinalPrompt(event.target.value)} placeholder="Generate the final prompt first."/><p className="help">Edit this prompt and generate again for another interpretation. The source dropdowns remain unchanged.</p>{error && <p className="error" role="alert">{error}</p>}<button className="generate" type="button" onClick={generateImage} disabled={!finalPrompt.trim() || !assets.ready || generating}>{generating ? <><span className="spinner"/>Generating campaign…</> : <><Camera size={18}/>{imageUrl ? 'Regenerate Image' : 'Generate Image'}</>}</button><GenerationProgress busy={generating} value={progress} label="Generating campaign image"/><UtilityStatus status={status || assets.status} ready={assets.ready}/>{!assets.ready && <p className="button-help">Install the three Z-Image Turbo files before generating.</p>}</section><div><OutputStage imageUrl={imageUrl} busy={generating} prompt={finalPrompt} frame={frame} label={frame.ratio} filename="model-studio-campaign.png"/><ModelSetup required={Z_REQUIRED} {...assets} intro="Model Studio uses the same local Z-Image Turbo model set as Darkroom."/></div></div>}
+      </section></div></main>
+}
+
 function PromptBuilder({ env }) {
   const [idea, setIdea] = useState(''), [result, setResult] = useState('')
   const [presets, setPresets] = useState([]), [preset, setPreset] = useState('')
@@ -552,11 +635,11 @@ function App() {
   const [visited, setVisited] = useState(() => new Set(['home']))
   useEffect(() => { fetch('/api/settings').then(response => response.json()).then(setEnv).catch(() => {}) }, [])
   useEffect(() => {
-    const titles = { home: 'Local Workshop', darkroom: 'Darkroom | Local Workshop', print: 'Print Studio | Local Workshop', 'print-enhance': 'Print Enhancer | Local Workshop', mockup: 'Mockup Bench | Local Workshop', 'prompt-builder': 'Prompt Builder | Local Workshop', upscaler: 'Image Upscaler | Local Workshop', anime: 'Anime Maker | Local Workshop', settings: 'Settings | Local Workshop' }
+    const titles = { home: 'Local Workshop', darkroom: 'Darkroom | Local Workshop', print: 'Print Studio | Local Workshop', 'print-enhance': 'Print Enhancer | Local Workshop', mockup: 'Mockup Bench | Local Workshop', 'model-studio': 'Model Studio | Local Workshop', 'prompt-builder': 'Prompt Builder | Local Workshop', upscaler: 'Image Upscaler | Local Workshop', anime: 'Anime Maker | Local Workshop', settings: 'Settings | Local Workshop' }
     document.title = titles[active]
   }, [active])
   const navigate = id => { setVisited(current => new Set(current).add(id)); setActive(id) }
-  return <div className="app-shell"><UtilityRail active={active} onChange={navigate} order={env.UTILITY_ORDER}/>{visited.has('home') && <div className="utility-panel" hidden={active !== 'home'}><Home onOpen={navigate} order={env.UTILITY_ORDER}/></div>}{visited.has('darkroom') && <div className="utility-panel" hidden={active !== 'darkroom'}><Darkroom/></div>}{visited.has('print') && <div className="utility-panel" hidden={active !== 'print'}><PrintStudio/></div>}{visited.has('print-enhance') && <div className="utility-panel" hidden={active !== 'print-enhance'}><PrintEnhancer/></div>}{visited.has('mockup') && <div className="utility-panel" hidden={active !== 'mockup'}><MockupBench/></div>}{visited.has('prompt-builder') && <div className="utility-panel" hidden={active !== 'prompt-builder'}><PromptBuilder env={env}/></div>}{visited.has('upscaler') && <div className="utility-panel" hidden={active !== 'upscaler'}><ImageUpscaler/></div>}{visited.has('anime') && <div className="utility-panel" hidden={active !== 'anime'}><AnimeMaker/></div>}{visited.has('settings') && <div className="utility-panel" hidden={active !== 'settings'}><SettingsPanel env={env} onSaved={setEnv}/></div>}</div>
+  return <div className="app-shell"><UtilityRail active={active} onChange={navigate} order={env.UTILITY_ORDER}/>{visited.has('home') && <div className="utility-panel" hidden={active !== 'home'}><Home onOpen={navigate} order={env.UTILITY_ORDER}/></div>}{visited.has('darkroom') && <div className="utility-panel" hidden={active !== 'darkroom'}><Darkroom/></div>}{visited.has('print') && <div className="utility-panel" hidden={active !== 'print'}><PrintStudio/></div>}{visited.has('print-enhance') && <div className="utility-panel" hidden={active !== 'print-enhance'}><PrintEnhancer/></div>}{visited.has('mockup') && <div className="utility-panel" hidden={active !== 'mockup'}><MockupBench/></div>}{visited.has('model-studio') && <div className="utility-panel" hidden={active !== 'model-studio'}><ModelStudio env={env}/></div>}{visited.has('prompt-builder') && <div className="utility-panel" hidden={active !== 'prompt-builder'}><PromptBuilder env={env}/></div>}{visited.has('upscaler') && <div className="utility-panel" hidden={active !== 'upscaler'}><ImageUpscaler/></div>}{visited.has('anime') && <div className="utility-panel" hidden={active !== 'anime'}><AnimeMaker/></div>}{visited.has('settings') && <div className="utility-panel" hidden={active !== 'settings'}><SettingsPanel env={env} onSaved={setEnv}/></div>}</div>
 }
 
 const container = document.getElementById('root')

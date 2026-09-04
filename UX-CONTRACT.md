@@ -43,6 +43,10 @@ Mockup Bench is a browser-only, non-destructive two-layer compositor. The user s
 
 Prompt Builder loads its selectable recipes from Markdown files named by `PROMPT_PRESETS`, then sends the user's one-line idea and selected recipe to the configured local Ollama chat endpoint. On desktop its build action occupies the left half of the workspace and the generated prompt follows beneath at full two-column width; narrow screens preserve source order. It returns only the generated prompt, preserves the previous successful result when a later request fails, blocks duplicate submission while pending, and writes to the clipboard only after the user chooses Copy prompt.
 
+## Model Studio
+
+Model Studio loads dropdown vocabulary from `prompts/clothing_brand_model_prompt_components.yaml`. Garment product categories carry their construction and audience, while color, print placement, tuck, and layering remain separate choices; changing model presentation automatically selects a compatible gendered or unisex product when needed. Style changes never mutate an existing broken prompt. `Generate Broken Prompt` captures the current compatible selections as a read-only keyword brief; `Generate Final Prompt` sends that snapshot through `prompts/__prompt-expander.md` and local Ollama; the returned prompt is editable. The Image tab keeps that prompt editable and sends it to the shared Z-Image Turbo ComfyUI workflow. Re-generation preserves the final prompt and source selections. The three tabs expose the sequence Style → Prompt → Image without preventing users from inspecting later panels.
+
 ## Image Upscaler
 
 Image Upscaler follows the official `image_upscale_z_image_turbo` blueprint: source upload, one-megapixel normalization, Real-ESRGAN 4× enlargement, 0.5 resize, VAE encoding, and five-step Z-Image Turbo refinement. The user controls the refinement prompt, denoise strength, and seed. The source preview remains visible until a refined output replaces it.

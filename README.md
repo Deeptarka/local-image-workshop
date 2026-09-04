@@ -24,6 +24,7 @@ Prompt Builder expands a short idea with the configured local Ollama model and p
 | Print Studio | Lettering-aware artwork intended for T-shirt prints | FLUX.2 Klein 4B Distilled |
 | Print Enhancer | Edits or enhances uploaded artwork from a written change request | FLUX.2 Klein 4B Distilled image edit |
 | Mockup Bench | Places uploaded artwork onto a model photo with live positioning and print-oriented blending | Browser canvas; no model required |
+| Model Studio | Builds model-and-garment campaign images from YAML options and an editable expanded prompt | Ollama and Z-Image Turbo |
 | Prompt Builder | Expands a one-line idea into a detailed image prompt with clipboard copying | Ollama and Qwen 3.5 |
 | Image Upscaler | Enlarges an existing image and restores/refines detail | Real-ESRGAN 4× and Z-Image Turbo |
 | Anime Maker | Anime-focused character and environment generation | Anima Base 1.0 |

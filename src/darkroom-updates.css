@@ -741,6 +741,54 @@ input[type="range"],
 
 .mockup-canvas-wrap canvas:active { cursor: grabbing; }
 
+.studio-shell { padding-top: 28px; }
+.studio-tabs { display: grid; grid-template-columns: repeat(3, 1fr); border-bottom: 1px solid var(--ink); }
+.studio-tabs button { min-height: 54px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-top: 1px solid var(--line); border-left: 1px solid var(--line); background: #fff; color: var(--muted); font: 700 12px Consolas, monospace; }
+.studio-tabs button:last-child { border-right: 1px solid var(--line); }
+.studio-tabs button:hover { background: var(--panel); color: var(--ink); }
+.studio-tabs button[aria-selected="true"] { border-color: var(--ink); background: var(--ink); color: #fff; }
+.studio-panel { min-height: 620px; border: 1px solid var(--ink); border-top: 0; background: #fff; }
+.studio-style { padding-bottom: 96px; }
+.style-intro { display: grid; grid-template-columns: minmax(160px, .7fr) 1.3fr; gap: 10px 30px; padding: clamp(22px, 4vw, 38px); border-bottom: 1px solid var(--line); }
+.style-intro > span { color: var(--signal); font: 10px Consolas, monospace; letter-spacing: .12em; }
+.style-intro h2 { font: normal clamp(25px, 3vw, 38px)/1.05 Georgia, serif; }
+.style-intro p { grid-column: 2; max-width: 660px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+.option-groups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.option-group { margin: 0; padding: clamp(20px, 3vw, 32px); border-right: 1px solid var(--line); }
+.option-group:last-child { border-right: 0; }
+.option-group legend { width: 100%; padding: 0 0 18px; font: normal 25px Georgia, serif; }
+.option-group legend small { display: block; margin-top: 4px; color: var(--muted); font: 10px Consolas, monospace; letter-spacing: .08em; text-transform: uppercase; }
+.option-grid { display: grid; gap: 15px; }
+.option-grid label { margin: 0; }
+.option-grid select { margin-top: 7px; }
+.sticky-action { position: sticky; bottom: 0; display: grid; grid-template-columns: 1fr minmax(230px, 330px); align-items: center; gap: 22px; padding: 16px clamp(20px, 3vw, 32px); border-top: 1px solid var(--ink); background: rgba(250,249,247,.96); backdrop-filter: blur(8px); }
+.sticky-action > div { display: grid; gap: 3px; }
+.sticky-action strong { font-size: 12px; }
+.sticky-action span { color: var(--muted); font-size: 11px; }
+.prompt-workbench, .studio-image { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); min-height: 620px; }
+.prompt-box, .image-prompt-panel { min-width: 0; display: flex; flex-direction: column; gap: 18px; padding: clamp(22px, 3vw, 36px); }
+.prompt-box + .prompt-box, .studio-image > div { border-left: 1px solid var(--ink); }
+.prompt-box-head { display: flex; justify-content: space-between; gap: 15px; padding-bottom: 14px; border-bottom: 1px solid var(--line); color: var(--muted); font: 10px Consolas, monospace; letter-spacing: .1em; }
+.prompt-box-head label { margin: 0; color: inherit; font: inherit; }
+.broken-copy { flex: 1; min-height: 300px; padding: 24px; border-left: 3px solid var(--signal); background: var(--panel); color: var(--ink); font: 15px/1.7 Consolas, monospace; overflow-wrap: anywhere; }
+.prompt-box textarea, .image-prompt-panel textarea { flex: 1; min-height: 280px; margin: 0; font: 15px/1.65 Georgia, serif; }
+.studio-image > div { min-width: 0; padding: clamp(22px, 3vw, 36px); }
+.studio-image .aperture { max-height: none; }
+
+@media (max-width: 980px) {
+  .option-groups { grid-template-columns: 1fr; }
+  .option-group { border-right: 0; border-bottom: 1px solid var(--line); }
+  .prompt-workbench, .studio-image { grid-template-columns: 1fr; }
+  .prompt-box + .prompt-box, .studio-image > div { border-left: 0; border-top: 1px solid var(--ink); }
+}
+
+@media (max-width: 600px) {
+  .studio-tabs button { min-height: 48px; font-size: 10px; }
+  .style-intro { grid-template-columns: 1fr; }
+  .style-intro p { grid-column: 1; }
+  .sticky-action { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 800px) {
   .mockup-canvas-wrap { min-height: 300px; }
   .mockup-canvas-wrap canvas { max-height: none; width: 100%; }
