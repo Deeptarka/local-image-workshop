@@ -8,7 +8,7 @@ Local Workshop is a private, desktop-first creative suite for locally hosted ima
 
 ![Local Workshop utility cards](./screenshot/screenshot-home-page.png)
 
-Seven focused utilities share one persistent, configurable navigation rail.
+Nine focused utilities share one persistent, configurable navigation rail.
 
 ### Local Prompt Builder
 
@@ -22,6 +22,7 @@ Prompt Builder expands a short idea with the configured local Ollama model and p
 |---|---|---|
 | Darkroom | General text-to-image work with framing, negative prompting, and optional LoRAs | Z-Image Turbo |
 | Print Studio | Lettering-aware artwork intended for T-shirt prints | FLUX.2 Klein 4B Distilled |
+| Design Lab | Turns rough ideas and optional visual inspiration into original, editable print concepts | Ollama and FLUX.2 Klein 4B Distilled |
 | Print Enhancer | Edits or enhances uploaded artwork from a written change request | FLUX.2 Klein 4B Distilled image edit |
 | Mockup Bench | Places uploaded artwork onto a model photo with live positioning and print-oriented blending | Browser canvas; no model required |
 | Model Studio | Builds model-and-garment campaign images from YAML options and an editable expanded prompt | Ollama and Z-Image Turbo |
@@ -42,6 +43,7 @@ The utility rail and homepage cards share a configurable order. Each utility kee
 - Browser previews and direct PNG downloads
 - Workflow-specific estimated progress while ComfyUI jobs run
 - File-backed Prompt Builder recipes for animation, realistic, and vector-print prompts
+- Editable Design Lab analysis, briefs, prompts, variations, refinement lineage, and garment contrast previews
 - No application database, user accounts, or backend image archive
 - Editable API-format workflow copies in [`workflows`](./workflows)
 
@@ -116,11 +118,18 @@ Mockup Bench does not recolor garments. Use a model photograph with the desired 
 
 - `image_z_image_turbo_darkroom.api.json`
 - `flux2_klein_print_studio.api.json`
+- `image_design_lab.api.json`
 - `image_flux2_klein_print_enhancer.api.json`
 - `image_upscale_z_image_turbo_workshop.api.json`
 - `image_anima_base_workshop.api.json`
 
 These are application-owned copies. The official ComfyUI templates are not modified.
+
+## Design Lab
+
+Design Lab treats an optional reference as inspiration-analysis input rather than ComfyUI image conditioning. A local Ollama model develops editable reference analysis, transferable ideas, avoid-copying notes, a design brief, an original direction, and the visible production prompt. Generation then uses the application-owned FLUX.2 Klein workflow. Results and parent/child iteration history remain in browser memory for the current session.
+
+Reference analysis requires the model named by `OLLAMA_MODEL` to accept images. Text-only concept development still works without a reference. Design Lab reuses the Print Studio model files and the existing Image Upscaler handoff. Its quick garment preview is an approximate contrast check, not a production-size mockup. Background removal is shown as an integration boundary until a local removal workflow is installed; no cloud service is used.
 
 ## Development
 

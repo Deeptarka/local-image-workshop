@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { Aperture, ArrowDown, ArrowUp, ArrowUpRight, Bot, Camera, Check, ChevronDown, Copy, Download, Home as HomeIcon, Image as ImageIcon, Layers3, Palette, RefreshCw, RotateCcw, Save, Settings, Shirt, Sparkles, WandSparkles } from 'lucide-react'
+import { Aperture, ArrowDown, ArrowUp, ArrowUpRight, Bot, Camera, Check, ChevronDown, Copy, Download, GitBranch, Home as HomeIcon, Image as ImageIcon, Layers3, Palette, RefreshCw, RotateCcw, Save, Scissors, Settings, Shirt, Sparkles, Upload, WandSparkles } from 'lucide-react'
 import './styles.css'
 import './darkroom-updates.css'
 
@@ -11,11 +11,12 @@ const DEFAULT_ENV = {
   OLLAMA_URL: 'http://127.0.0.1:11434',
   OLLAMA_MODEL: 'qwen3.5:0.8b',
   PROMPT_PRESETS: 'animation-image.md,realistic-image.md,vector-print.md',
-  UTILITY_ORDER: 'darkroom,print,print-enhance,mockup,model-studio,prompt-builder,upscaler,anime'
+  UTILITY_ORDER: 'darkroom,print,design-lab,print-enhance,mockup,model-studio,prompt-builder,upscaler,anime'
 }
 const UTILITY_DEFINITIONS = [
   { id: 'darkroom', title: 'Darkroom', kicker: 'SCENES · ATMOSPHERE · DETAIL', icon: Aperture, specimen: 'LIGHT / GRAIN', copy: 'Build atmospheric images from a positive and negative prompt, with flexible framing and optional LoRA control.', action: 'Develop an image' },
   { id: 'print', title: 'Print Studio', kicker: 'LETTERING · APPAREL · INK', icon: Shirt, specimen: 'TYPE / INK', copy: 'Compose lettering-aware graphics for apparel with screen-print treatments, controlled ink counts, and print-oriented prompting.', action: 'Pull a print' },
+  { id: 'design-lab', title: 'Design Lab', kicker: 'IDEA · TRANSFORM · PRINT', icon: WandSparkles, specimen: 'IDEA / FORM', copy: 'Turn a rough idea and optional visual inspiration into original, print-ready artwork with a visible, editable prompt.', action: 'Develop a concept' },
   { id: 'print-enhance', title: 'Print Enhancer', kicker: 'REFERENCE · EDIT · REFINE', icon: WandSparkles, specimen: 'IMAGE / EDIT', copy: 'Upload existing artwork and describe the exact visual enhancement or production-minded change you want to make.', action: 'Enhance artwork' },
   { id: 'mockup', title: 'Mockup Bench', kicker: 'MODEL · ARTWORK · EXPORT', icon: Layers3, specimen: 'PLACE / BLEND', copy: 'Place a design onto a model photograph, tune its position and print blend, then export a finished mockup.', action: 'Build a mockup' },
   { id: 'model-studio', title: 'Model Studio', kicker: 'CAST · GARMENT · CAMPAIGN', icon: Camera, specimen: 'STYLE / SHOOT', copy: 'Cast a fashion model, style the garment, expand the brief locally, and generate campaign-ready imagery.', action: 'Style a campaign' },
@@ -28,7 +29,7 @@ function normalizeUtilityOrder(value) {
   const requested = String(value || '').split(',').map(item => item.trim()).filter(item => UTILITY_IDS.includes(item))
   return [...new Set([...requested, ...UTILITY_IDS])]
 }
-const OUTPUT_PREFIX = { darkroom: 'darkroom-z-turbo', print: 'print-studio/flux-klein', printEnhance: 'print-enhancer/flux-klein-edit', upscaler: 'upscaler/z-image-turbo', anime: 'anime/anima-base' }
+const OUTPUT_PREFIX = { darkroom: 'darkroom-z-turbo', print: 'print-studio/flux-klein', designLab: 'design-lab/flux-klein', printEnhance: 'print-enhancer/flux-klein-edit', upscaler: 'upscaler/z-image-turbo', anime: 'anime/anima-base' }
 const Z_REQUIRED = {
   diffusion: { file: 'z_image_turbo_bf16.safetensors', folder: 'diffusion_models', label: 'Diffusion model', size: '11.46 GB', url: 'https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/diffusion_models/z_image_turbo_bf16.safetensors' },
   text: { file: 'qwen_3_4b.safetensors', folder: 'text_encoders', label: 'Text encoder', size: '7.49 GB', url: 'https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/text_encoders/qwen_3_4b.safetensors' },
@@ -94,6 +95,33 @@ function kleinWorkflow({ prompt, width, height, steps, guidance, seed, model, en
     '12': { class_type: 'VAEDecode', inputs: { samples: ['11', 0], vae: ['3', 0] } },
     '13': { class_type: 'SaveImage', inputs: { filename_prefix: outputPrefix, images: ['12', 0] } }
   }
+}
+
+async function designLabWorkflow({ prompt, width, height, steps, guidance, seed, outputPrefix }) {
+  const response = await fetch('/api/design-lab/workflow')
+  const graph = await responseJson(response, 'The Design Lab workflow file is empty.')
+  if (!response.ok || graph.error) throw new Error(graph.error || 'The Design Lab workflow could not be loaded.')
+  graph['4'].inputs.text = prompt
+  graph['6'].inputs.width = width; graph['6'].inputs.height = height
+  graph['7'].inputs.noise_seed = seed
+  graph['8'].inputs.cfg = guidance
+  graph['10'].inputs.steps = steps; graph['10'].inputs.width = width; graph['10'].inputs.height = height
+  graph['13'].inputs.filename_prefix = outputPrefix
+  return graph
+}
+
+function fileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = () => reject(new Error('The reference image could not be read.'))
+    reader.readAsDataURL(file)
+  })
+}
+
+function parseDirectorJson(content) {
+  try { return JSON.parse(content.replace(/^```json\s*|\s*```$/g, '')) }
+  catch { throw new Error('Ollama returned an unreadable design response. Try Develop Concept again.') }
 }
 
 function kleinReferenceEditWorkflow({ image, prompt, steps, guidance, seed, outputPrefix }) {
@@ -338,6 +366,124 @@ function PrintStudio() {
   </form>} output={<><OutputStage imageUrl={imageUrl} busy={busy} prompt={prompt} frame={frame} label={`${frame.ratio} · ${inkCount} INKS`} filename="flux-klein-shirt-print.png"/><div className="model-note print-note"><strong>Production note</strong><span>The download is a raster PNG. Verify spelling and your printer’s size, background, and color-profile requirements before manufacturing.</span></div><ModelSetup required={KLEIN_REQUIRED} {...assetState} intro="Install the official FLUX.2 Klein 4B Distilled files. The Qwen encoder can be shared with Z-Image."/></>}/>
 }
 
+const REFERENCE_TRAITS = ['Composition', 'Color palette', 'Texture', 'Subject', 'Lighting', 'Typography', 'Illustration style', 'Mood', 'Other']
+const DESIGN_LAB_DEFAULT_IDEA = ''
+const DESIGN_LAB_BRIEF_FIELDS = ['DESIGN OBJECTIVE', 'PRIMARY SUBJECT', 'VISUAL STYLE', 'COMPOSITION', 'COLOR PALETTE', 'TEXTURE', 'BACKGROUND TREATMENT', 'TYPOGRAPHY', 'PRINT METHOD', 'GARMENT COLOR', 'ORIGINALITY REQUIREMENTS', 'THINGS TO AVOID']
+
+function DesignLab({ onSendToUpscaler }) {
+  const assets = useComfyAssets(KLEIN_REQUIRED)
+  const [idea, setIdea] = useState(DESIGN_LAB_DEFAULT_IDEA), [reference, setReference] = useState(null), [referenceUrl, setReferenceUrl] = useState('')
+  const [traits, setTraits] = useState(['Composition', 'Color palette', 'Texture', 'Illustration style', 'Mood']), [preference, setPreference] = useState('')
+  const [analysis, setAnalysis] = useState(''), [brief, setBrief] = useState(''), [originalDirection, setOriginalDirection] = useState('')
+  const [prompt, setPrompt] = useState(''), [negativePrompt, setNegativePrompt] = useState('text, logo, trademark, watermark, shirt mockup, visible T-shirt, rectangular poster background, tiny isolated details')
+  const [outputType, setOutputType] = useState('DTF T-shirt Print'), [garment, setGarment] = useState('Black'), [mode, setMode] = useState('simple')
+  const [ratio, setRatio] = useState('4:5'), [width, setWidth] = useState(832), [height, setHeight] = useState(1056), [quality, setQuality] = useState('Standard')
+  const [steps, setSteps] = useState(4), [guidance, setGuidance] = useState(1), [seed, setSeed] = useState(-1), [variationCount, setVariationCount] = useState(1)
+  const [results, setResults] = useState([]), [selectedId, setSelectedId] = useState(''), [refinement, setRefinement] = useState('')
+  const [developing, setDeveloping] = useState(false), [generating, setGenerating] = useState(false), [directorStatus, setDirectorStatus] = useState('Ready for an idea'), [error, setError] = useState('')
+  const [printOpen, setPrintOpen] = useState(false), [previewColor, setPreviewColor] = useState('#111111'), [printSize, setPrintSize] = useState('Large Front')
+  const fileInput = useRef(null), abort = useRef(false)
+  const busy = developing || generating
+  const progress = useEstimatedProgress(generating, 18 + steps * 2.3)
+  const selected = results.find(item => item.id === selectedId) || results[0]
+
+  useEffect(() => () => { if (referenceUrl) URL.revokeObjectURL(referenceUrl) }, [referenceUrl])
+  const selectRatio = value => {
+    setRatio(value)
+    const sizes = { '1:1': [1024, 1024], '4:5': [832, 1056], '3:4': [896, 1152], '2:3': [832, 1248] }
+    if (sizes[value]) { setWidth(sizes[value][0]); setHeight(sizes[value][1]) }
+  }
+  const chooseReference = event => {
+    const file = event.target.files?.[0]; if (!file) return
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) { setError('Use a PNG, JPEG, or WebP reference image.'); event.target.value = ''; return }
+    if (file.size > 12 * 1024 * 1024) { setError('The reference is larger than 12 MB. Resize it before analysis.'); event.target.value = ''; return }
+    if (referenceUrl) URL.revokeObjectURL(referenceUrl)
+    setReference(file); setReferenceUrl(URL.createObjectURL(file)); setAnalysis(''); setError('')
+  }
+  const direct = async (instruction, image, temperature = .5) => {
+    const response = await fetch('/api/design-lab/direct', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ instruction, image, json: true, temperature }) })
+    const payload = await responseJson(response, 'Ollama returned an empty Design Lab response.')
+    if (!response.ok) throw new Error(payload.error || 'Ollama could not develop the concept.')
+    return parseDirectorJson(payload.content)
+  }
+  const developConcept = async event => {
+    event.preventDefault(); if (!idea.trim() || busy) return
+    setDeveloping(true); setError(''); setDirectorStatus(reference ? 'Analyzing inspiration locally…' : 'Developing the visual direction locally…')
+    try {
+      const image = reference ? await fileAsDataUrl(reference) : undefined
+      const instruction = `Return JSON with exactly these string keys: analysis, transferableIdeas, avoidCopying, designBrief, originalDirection, imagePrompt, negativePrompt.\nUser idea: ${idea.trim()}\nOutput type: ${outputType}\nGarment color: ${garment}\nReference preferences: ${traits.join(', ') || 'none selected'}. ${preference || 'No extra note.'}\nFor analysis, use headings SUBJECT, COMPOSITION, COLOR PALETTE, LIGHTING, TEXTURES, GRAPHIC ELEMENTS, TYPOGRAPHY, VISUAL HIERARCHY, MOOD, PRINT CHARACTERISTICS, DISTINCTIVE ELEMENTS. If there is no image, say that analysis was based on the written idea. transferableIdeas and avoidCopying must be concise bulleted text. designBrief must include these headings: ${DESIGN_LAB_BRIEF_FIELDS.join(', ')}. originalDirection must materially change composition, subject details, hierarchy, geometry, background structure, secondary elements, typography, and texture placement where relevant. imagePrompt must be a complete production prompt optimized for FLUX.2 Klein 4B and ${outputType}. Do not reproduce a reference composition.`
+      const result = await direct(instruction, image)
+      setAnalysis(`${result.analysis}\n\nTRANSFERABLE IDEAS\n${result.transferableIdeas}\n\nAVOID COPYING\n${result.avoidCopying}`)
+      setBrief(result.designBrief); setOriginalDirection(result.originalDirection); setPrompt(result.imagePrompt); setNegativePrompt(result.negativePrompt || negativePrompt)
+      setDirectorStatus('Concept developed · review every editable section')
+    } catch (caught) { setError(caught.message); setDirectorStatus('Concept development needs attention') } finally { setDeveloping(false) }
+  }
+  const generatePrompt = async () => {
+    if (!brief.trim() || busy) return
+    setDeveloping(true); setError(''); setDirectorStatus('Writing the production prompt locally…')
+    try {
+      const result = await direct(`Return JSON with exactly these string keys: imagePrompt, negativePrompt. Create a concrete FLUX.2 Klein 4B production prompt from this editable brief and original direction. Output type: ${outputType}. Garment: ${garment}.\nBRIEF\n${brief}\nORIGINAL DIRECTION\n${originalDirection}`)
+      setPrompt(result.imagePrompt); setNegativePrompt(result.negativePrompt || ''); setDirectorStatus('Prompt ready to edit')
+    } catch (caught) { setError(caught.message); setDirectorStatus('Prompt generation needs attention') } finally { setDeveloping(false) }
+  }
+  const printAwarePrompt = value => outputType === 'DTF T-shirt Print' ? `${value.trim()} Isolated artwork only; no mockup and no visible T-shirt. Irregular artwork boundary, strong silhouette, controlled fine detail, printable contrast, no tiny floating fragments, transparent or easily removable plain background. Garment color: ${garment}. ${garment.toLowerCase() === 'black' ? 'Use black fabric as intentional negative space, maintain edge and highlight separation, and do not print an unnecessary black rectangle.' : `Maintain clear contrast against ${garment.toLowerCase()} fabric.`}` : value.trim()
+  const generateImages = async ({ transformedPrompt = prompt, kind = 'original', parentId = null, count = variationCount } = {}) => {
+    if (!transformedPrompt.trim() || !assets.ready || generating) return
+    setGenerating(true); setError(''); setDirectorStatus('Queuing Design Lab artwork…'); abort.current = false
+    try {
+      for (let index = 0; index < count; index++) {
+        const usedSeed = seed < 0 ? Math.floor(Math.random() * Number.MAX_SAFE_INTEGER) : seed + index
+        const finalPrompt = printAwarePrompt(`${transformedPrompt}\nAvoid: ${negativePrompt}`)
+        const graph = await designLabWorkflow({ prompt: finalPrompt, width, height, steps, guidance, seed: usedSeed, outputPrefix: `${OUTPUT_PREFIX.designLab}/${Date.now()}-${index + 1}` })
+        let imageUrl = ''
+        await runWorkflow(graph, '13', setDirectorStatus, url => { imageUrl = url }, abort)
+        const item = { id: crypto.randomUUID(), imageUrl, prompt: transformedPrompt, negativePrompt, seed: usedSeed, model: KLEIN_REQUIRED.diffusion.file, width, height, steps, guidance, kind, parentId, createdAt: Date.now() }
+        setResults(current => [item, ...current]); setSelectedId(item.id)
+      }
+      setDirectorStatus('Artwork ready · choose a next step')
+    } catch (caught) {
+      const message = /alloc|memory|cuda|oom/i.test(caught.message) ? 'ComfyUI ran out of memory. Try a smaller frame, Standard quality, or close another GPU-heavy task.' : caught.message
+      setError(message); setDirectorStatus('Generation needs attention')
+    } finally { setGenerating(false) }
+  }
+  const transformAndGenerate = async kind => {
+    if (!selected || busy) return
+    setDeveloping(true); setError(''); setDirectorStatus(kind === 'creative' ? 'Recomposing the concept…' : kind === 'subtle' ? 'Preparing a subtle variation…' : 'Interpreting the refinement…')
+    try {
+      const request = kind === 'refine' ? `Apply this natural-language refinement while preserving all unmentioned strengths: ${refinement}` : kind === 'creative' ? 'Create a meaningfully different composition and hierarchy while keeping the approved brief. Do more than change the seed.' : 'Keep the main concept and composition while changing secondary details, texture placement, and small styling choices.'
+      const result = await direct(`Return JSON with exactly one string key: imagePrompt. ${request}\nAPPROVED BRIEF\n${brief}\nCURRENT PROMPT\n${selected.prompt}` , undefined, kind === 'creative' ? .78 : .42)
+      setDeveloping(false)
+      await generateImages({ transformedPrompt: result.imagePrompt, kind, parentId: selected.id, count: 1 })
+    } catch (caught) { setError(caught.message); setDirectorStatus('Variation needs attention'); setDeveloping(false) }
+  }
+  const reset = () => {
+    if (referenceUrl) URL.revokeObjectURL(referenceUrl)
+    setIdea(''); setReference(null); setReferenceUrl(''); setTraits(['Composition', 'Color palette', 'Texture', 'Illustration style', 'Mood']); setPreference(''); setAnalysis(''); setBrief(''); setOriginalDirection(''); setPrompt(''); setNegativePrompt('text, logo, trademark, watermark, shirt mockup, visible T-shirt, rectangular poster background, tiny isolated details'); setResults([]); setSelectedId(''); setRefinement(''); setPrintOpen(false); setError(''); setDirectorStatus('Ready for an idea'); if (fileInput.current) fileInput.current.value = ''; assets.setError(''); assets.loadAssets()
+  }
+  const selectedFrame = selected ? { width: selected.width, height: selected.height } : { width, height }
+
+  return <main className="design-lab"><header className="masthead"><div><p className="eyebrow">DESIGN LAB · IDEA TO PRINT</p><h1>Shape an original direction</h1><p className="dek">Understand → abstract → transform → generate</p></div><div className="masthead-tools"><button type="button" className="page-reset" onClick={reset} disabled={busy}><RotateCcw size={15}/>Reset</button></div></header>
+    <div className="lab-progress" aria-label="Design Lab workflow"><span className={idea ? 'done' : 'active'}>Idea</span><i>→</i><span className={brief ? 'done' : idea ? 'active' : ''}>Design</span><i>→</i><span className={results.length ? 'done' : prompt ? 'active' : ''}>Generate</span><i>→</i><span className={selected?.parentId ? 'done' : selected ? 'active' : ''}>Refine</span><i>→</i><span className={printOpen ? 'done' : selected ? 'active' : ''}>Print</span></div>
+    <form className="lab-grid" noValidate onSubmit={developConcept}>
+      <section className="lab-card lab-idea"><div className="section-head"><span>01</span><h2>Start with the idea</h2></div><label htmlFor="lab-idea">Describe what you're imagining</label><textarea id="lab-idea" rows="6" value={idea} onChange={event => setIdea(event.target.value)} placeholder="I want something aggressive for a black oversized T-shirt. A golden sports car with abstract cream and mustard graphics. Industrial, slightly vintage, premium streetwear feeling." aria-describedby="lab-idea-help"/><p id="lab-idea-help" className="help">Use everyday language. The art director translates it into visual and print terms.</p>
+        <div className="lab-output-row"><div><label htmlFor="lab-output">Output type</label><select id="lab-output" value={outputType} onChange={event => setOutputType(event.target.value)}>{['Artwork', 'DTF T-shirt Print', 'Poster', 'Sticker', 'General Image'].map(value => <option key={value}>{value}</option>)}</select></div><div><label htmlFor="lab-garment">Garment color</label><select id="lab-garment" value={garment} onChange={event => setGarment(event.target.value)}>{['Black', 'White', 'Gray', 'Navy', 'Cream', 'Custom'].map(value => <option key={value}>{value}</option>)}</select></div></div>
+        <button className="generate" type="submit" disabled={!idea.trim() || busy} aria-busy={developing}>{developing ? <><span className="spinner"/>Developing…</> : <><WandSparkles size={18}/>Develop Concept</>}</button>
+      </section>
+      <section className="lab-card lab-reference"><div className="section-head"><span>02</span><h2>Add visual inspiration <small>optional</small></h2></div><label className="reference-drop" htmlFor="lab-reference"><Upload size={20}/><strong>{reference ? 'Replace reference' : 'Choose a reference image'}</strong><span>PNG, JPEG, or WebP · up to 12 MB</span></label><input ref={fileInput} className="visually-hidden" id="lab-reference" type="file" accept="image/png,image/jpeg,image/webp" onChange={chooseReference}/>{referenceUrl && <img className="reference-thumb" src={referenceUrl} alt="Selected visual reference"/>}
+        {reference && <button type="button" className="remove-reference" onClick={() => { if (referenceUrl) URL.revokeObjectURL(referenceUrl); setReference(null); setReferenceUrl(''); setAnalysis(''); if (fileInput.current) fileInput.current.value = '' }}>Remove reference</button>}<fieldset><legend>What do you like about this image?</legend><div className="trait-grid">{REFERENCE_TRAITS.map(value => <label key={value}><input type="checkbox" checked={traits.includes(value)} onChange={() => setTraits(current => current.includes(value) ? current.filter(item => item !== value) : [...current, value])}/><span>{value}</span></label>)}</div></fieldset><label htmlFor="lab-reference-note">Your notes</label><textarea id="lab-reference-note" rows="3" value={preference} onChange={event => setPreference(event.target.value)} placeholder="I like the mustard/cream/black palette and rough architectural lines. Do not copy the car or exact composition."/>
+      </section>
+      <section className="lab-card lab-analysis"><div className="section-head"><span>03</span><h2>Reference analysis</h2></div><label htmlFor="lab-analysis">Analysis <span>editable</span></label><textarea id="lab-analysis" rows="14" value={analysis} onChange={event => setAnalysis(event.target.value)} placeholder="Develop the concept to see transferable ideas and distinctive elements to avoid copying."/><p className="notice">Reference analysis helps create a new visual direction. It does not determine copyright, trademark, or licensing status.</p></section>
+      <section className="lab-card lab-brief"><div className="section-head"><span>04</span><h2>Design brief</h2></div><label htmlFor="lab-brief">Approved brief <span>editable</span></label><textarea id="lab-brief" rows="18" value={brief} onChange={event => setBrief(event.target.value)} placeholder={DESIGN_LAB_BRIEF_FIELDS.join('\n')}/><label htmlFor="lab-original">Original direction <span>editable</span></label><textarea id="lab-original" rows="7" value={originalDirection} onChange={event => setOriginalDirection(event.target.value)} placeholder="A materially independent composition will appear here."/><button type="button" className="secondary-action" onClick={generatePrompt} disabled={!brief.trim() || busy}><Sparkles size={17}/>Generate Prompt</button></section>
+      <section className="lab-card lab-prompt"><div className="section-head"><span>05</span><h2>Production prompt</h2></div><label htmlFor="lab-prompt">Image prompt <span>always editable</span></label><textarea id="lab-prompt" rows="13" value={prompt} onChange={event => setPrompt(event.target.value)} placeholder="Your production prompt will stay visible here."/><label htmlFor="lab-negative">Negative prompt</label><textarea id="lab-negative" rows="4" value={negativePrompt} onChange={event => setNegativePrompt(event.target.value)}/></section>
+      <section className="lab-card lab-settings"><div className="section-head"><span>06</span><h2>Generation settings</h2></div><div className="segmented lab-mode">{['simple', 'advanced'].map(value => <button key={value} type="button" className={mode === value ? 'active' : ''} aria-pressed={mode === value} onClick={() => setMode(value)}>{value}</button>)}</div><div className="lab-output-row"><div><label htmlFor="lab-model">Model</label><select id="lab-model" value="FLUX.2 Klein 4B" disabled><option>FLUX.2 Klein 4B</option></select></div><div><label htmlFor="lab-ratio">Aspect ratio</label><select id="lab-ratio" value={ratio} onChange={event => selectRatio(event.target.value)}>{['1:1', '4:5', '3:4', '2:3', 'Custom'].map(value => <option key={value}>{value}</option>)}</select></div><div><label htmlFor="lab-quality">Quality</label><select id="lab-quality" value={quality} onChange={event => { setQuality(event.target.value); setSteps(event.target.value === 'Draft' ? 4 : event.target.value === 'High' ? 8 : 6) }}><option>Draft</option><option>Standard</option><option>High</option></select></div><div><label htmlFor="lab-count">Variations</label><select id="lab-count" value={variationCount} onChange={event => setVariationCount(Number(event.target.value))}>{[1,2,3,4].map(value => <option key={value}>{value}</option>)}</select></div></div>{mode === 'advanced' && <div className="advanced-grid"><div><label htmlFor="lab-width">Width</label><input id="lab-width" type="number" min="512" max="1536" step="16" value={width} onChange={event => { setWidth(Number(event.target.value)); setRatio('Custom') }}/></div><div><label htmlFor="lab-height">Height</label><input id="lab-height" type="number" min="512" max="1536" step="16" value={height} onChange={event => { setHeight(Number(event.target.value)); setRatio('Custom') }}/></div><div><label htmlFor="lab-steps">Steps</label><input id="lab-steps" type="number" min="4" max="12" value={steps} onChange={event => setSteps(Number(event.target.value))}/></div><div><label htmlFor="lab-guidance">Guidance</label><input id="lab-guidance" type="number" min="1" max="5" step=".1" value={guidance} onChange={event => setGuidance(Number(event.target.value))}/></div></div>}<div className="field"><label htmlFor="lab-seed">Seed <span>−1 random</span></label><input id="lab-seed" type="number" min="-1" max="9007199254740991" value={seed} onChange={event => setSeed(Number(event.target.value))}/></div><p className="help">Start at 832 × 1056 for a 4:5 print. Higher sizes may exceed a 12 GB GPU; upscale the chosen result afterward.</p><button type="button" className="generate" onClick={() => generateImages()} disabled={!prompt.trim() || !assets.ready || busy} aria-busy={generating}>{generating ? <><span className="spinner"/>Generating…</> : <><Sparkles size={18}/>Generate Artwork</>}</button><GenerationProgress busy={generating} value={progress} label="Developing artwork"/><UtilityStatus status={directorStatus || assets.status} ready={assets.ready}/>{(error || assets.error) && <p className="error" role="alert">{error || assets.error}</p>}<ModelSetup required={KLEIN_REQUIRED} {...assets} intro="Design Lab uses the existing Print Studio FLUX.2 Klein model set. No additional image model is required."/></section>
+    </form>
+    <section className="lab-results" aria-labelledby="lab-results-title"><div className="results-head"><div><p className="eyebrow">RESULTS · SESSION ONLY</p><h2 id="lab-results-title">Iteration gallery</h2></div><span>{results.length} result{results.length === 1 ? '' : 's'}</span></div>{results.length ? <div className="result-grid">{results.map(item => <article key={item.id} className={selected?.id === item.id ? 'result-card selected' : 'result-card'}><button type="button" className="result-image" onClick={() => setSelectedId(item.id)} aria-label={`Use ${item.kind} result with seed ${item.seed}`}><img src={item.imageUrl} alt={`${item.kind} Design Lab result`}/><span>{item.kind.toUpperCase()}</span></button><div className="result-actions"><button type="button" onClick={() => setSelectedId(item.id)}><Check size={14}/>Use This</button><a href={item.imageUrl} download={`design-lab-${item.seed}.png`}><Download size={14}/>Download</a></div><details><summary>Prompt & settings</summary><p>{item.prompt}</p><code>{item.model} · {item.width}×{item.height} · seed {item.seed} · {item.steps} steps · CFG {item.guidance}</code></details></article>)}</div> : <div className="results-empty"><ImageIcon size={34}/><p>Your original directions and variations will collect here without overwriting earlier work.</p></div>}
+      {selected && <div className="next-actions"><div><h3>Explore this direction</h3><p>Variations transform the prompt; they do more than swap the seed.</p></div><button type="button" onClick={() => transformAndGenerate('subtle')} disabled={busy}><GitBranch size={16}/>Subtle Variation</button><button type="button" onClick={() => transformAndGenerate('creative')} disabled={busy}><Sparkles size={16}/>Creative Variation</button><div className="refine-row"><label htmlFor="lab-refine">Refine in your own words</label><textarea id="lab-refine" rows="2" value={refinement} onChange={event => setRefinement(event.target.value)} placeholder="Keep everything but make the car slightly smaller and add more cream brush texture behind it."/><button type="button" onClick={() => transformAndGenerate('refine')} disabled={!refinement.trim() || busy}><WandSparkles size={16}/>Refine</button></div><button type="button" onClick={() => setPrintOpen(true)}><Scissors size={16}/>Prepare for Print</button><button type="button" onClick={() => onSendToUpscaler(selected)}><Layers3 size={16}/>Send to Upscaler</button></div>}
+    </section>
+    {printOpen && selected && <section className="print-prep" aria-labelledby="print-prep-title"><div className="results-head"><div><p className="eyebrow">QUICK CONTRAST CHECK</p><h2 id="print-prep-title">Prepare for print</h2></div><button type="button" className="page-reset" onClick={() => setPrintOpen(false)}>Close</button></div><div className="print-prep-grid"><div className="garment-preview" style={{ backgroundColor: previewColor }}><img src={selected.imageUrl} className={`print-${printSize.toLowerCase().replaceAll(' ', '-')}`} alt={`Artwork previewed on ${previewColor} fabric`}/></div><div className="print-prep-controls"><label htmlFor="preview-color">Preview on</label><div className="color-actions">{[['Black','#111111'],['White','#ffffff'],['Gray','#777777']].map(([label,value]) => <button key={label} type="button" className={previewColor === value ? 'active' : ''} onClick={() => setPreviewColor(value)}>{label}</button>)}<input id="preview-color" type="color" value={previewColor} onChange={event => setPreviewColor(event.target.value)} aria-label="Custom garment color"/></div><label htmlFor="print-size">Approximate print size</label><select id="print-size" value={printSize} onChange={event => setPrintSize(event.target.value)}>{['Small Chest', 'Center Chest', 'Large Front', 'Oversized Back'].map(value => <option key={value}>{value}</option>)}</select><div className="model-note"><strong>Background removal</strong><span>Automatic removal is not configured locally. This preview preserves the original and checks contrast only. Install a local background-removal workflow before expecting transparency.</span></div><p className="help">Placement is approximate and is not a physical-size proof.</p></div></div></section>}
+  </main>
+}
+
 function PrintEnhancer() {
   const assetState = useComfyAssets(KLEIN_REQUIRED)
   const [file, setFile] = useState(null), [sourceUrl, setSourceUrl] = useState(''), [imageUrl, setImageUrl] = useState('')
@@ -457,13 +603,27 @@ function MockupBench() {
   return <ToolLayout eyebrow="MOCKUP BENCH · LAYERED COMPOSITE" title="Build a shirt mockup" dek="Two image layers · live placement · local PNG export" accent="mockup" onReset={reset} controls={controls} output={output}/>
 }
 
-function ImageUpscaler() {
+function ImageUpscaler({ handoff, onHandoffConsumed }) {
   const assetState = useComfyAssets(UPSCALE_REQUIRED)
   const [file, setFile] = useState(null), [sourceUrl, setSourceUrl] = useState(''), [imageUrl, setImageUrl] = useState('')
   const [frame, setFrame] = useState(defaultFrame), [prompt, setPrompt] = useState('masterpiece, high detail, crisp natural texture')
   const [denoise, setDenoise] = useState(0.33), [seed, setSeed] = useState(-1), [busy, setBusy] = useState(false), [jobStatus, setJobStatus] = useState('')
   const progress = useEstimatedProgress(busy, 55)
   const abort = useRef(false), fileInput = useRef(null)
+  useEffect(() => {
+    if (!handoff?.imageUrl) return
+    let cancelled = false
+    fetch(handoff.imageUrl).then(response => {
+      if (!response.ok) throw new Error('The selected Design Lab image could not be read.')
+      return response.blob()
+    }).then(blob => {
+      if (cancelled) return
+      const nextFile = new File([blob], `design-lab-${handoff.seed}.png`, { type: blob.type || 'image/png' })
+      if (sourceUrl) URL.revokeObjectURL(sourceUrl)
+      setFile(nextFile); setSourceUrl(URL.createObjectURL(nextFile)); setImageUrl(''); setFrame({ width: handoff.width, height: handoff.height, ratio: 'Source', orientation: handoff.width === handoff.height ? 'square' : handoff.width > handoff.height ? 'landscape' : 'portrait' }); setPrompt(`Preserve the approved Design Lab composition, silhouette, palette, and print texture. Restore clean edges and controlled detail without adding new text or elements. ${handoff.prompt}`); setJobStatus('Design Lab result ready to upscale'); assetState.setError(''); onHandoffConsumed?.()
+    }).catch(caught => assetState.setError(caught.message))
+    return () => { cancelled = true }
+  }, [handoff?.id])
   const chooseFile = event => {
     const next = event.target.files?.[0]; if (!next) return
     if (sourceUrl) URL.revokeObjectURL(sourceUrl)
@@ -509,8 +669,7 @@ function AnimeMaker() {
 
 const MODEL_FIELD_GROUPS = [
   { title: 'Cast', note: 'Who wears the garment', fields: [['model.gender_presentation', 'Presentation'], ['model.age_group.adult', 'Age'], ['model.age_group.kids', 'Age'], ['model.indian_region_look', 'Indian casting direction'], ['model.body_build.male', 'Build'], ['model.body_build.female', 'Build'], ['model.body_build.kids', 'Build'], ['model.skin.tone', 'Skin tone'], ['model.skin.undertone', 'Undertone'], ['model.face.male_facial_hair', 'Facial hair'], ['model.face.female_makeup', 'Makeup'], ['model.hair.male_style', 'Hair'], ['model.hair.female_style', 'Hair'], ['model.hair.kids_boy_style', 'Hair'], ['model.hair.kids_girl_style', 'Hair'], ['model.hair.color', 'Hair color']] },
-  { title: 'Garment', note: 'The hero product', fields: [['garment.category', 'Product'], ['garment.color', 'Color'], ['garment.print_state', 'Print placement'], ['garment.tuck.adult', 'Tuck'], ['garment.tuck.kids', 'Tuck'], ['garment.layering.adult', 'Layering'], ['garment.layering.kids', 'Layering'], ['bottomwear.type.adult', 'Bottomwear'], ['bottomwear.type.kids', 'Bottomwear'], ['bottomwear.color', 'Bottomwear color']] },
-  { title: 'Accessories', note: 'Details kept clear of the garment', fields: [['accessories.adult.eyewear', 'Eyewear'], ['accessories.kids.eyewear', 'Eyewear'], ['accessories.adult.headwear', 'Headwear'], ['accessories.kids.headwear', 'Headwear'], ['accessories.adult.jewelry', 'Jewelry'], ['accessories.kids.jewelry', 'Jewelry'], ['accessories.adult.wrist', 'Wrist'], ['accessories.kids.wrist', 'Wrist'], ['accessories.adult.bags', 'Bag'], ['accessories.kids.bags', 'Bag'], ['accessories.adult.other', 'Other'], ['accessories.kids.other', 'Other']] },
+  { title: 'Garment', note: 'Product, styling, and accessories', fields: [['garment.category', 'Product'], ['garment.color', 'Color'], ['garment.print_state', 'Print placement'], ['garment.tuck.adult', 'Tuck'], ['garment.tuck.kids', 'Tuck'], ['garment.layering.adult', 'Layering'], ['garment.layering.kids', 'Layering'], ['bottomwear.type.adult', 'Bottomwear'], ['bottomwear.type.kids', 'Bottomwear'], ['bottomwear.color', 'Bottomwear color'], ['accessories.adult.eyewear', 'Eyewear'], ['accessories.kids.eyewear', 'Eyewear'], ['accessories.adult.headwear', 'Headwear'], ['accessories.kids.headwear', 'Headwear'], ['accessories.adult.jewelry', 'Jewelry'], ['accessories.kids.jewelry', 'Jewelry'], ['accessories.adult.wrist', 'Wrist'], ['accessories.kids.wrist', 'Wrist'], ['accessories.adult.bags', 'Bag'], ['accessories.kids.bags', 'Bag'], ['accessories.adult.other', 'Other'], ['accessories.kids.other', 'Other']] },
   { title: 'Shoot', note: 'Pose, place, and camera', fields: [['style_direction.adult', 'Direction'], ['style_direction.kids', 'Direction'], ['pose.primary_view', 'View'], ['pose.body.adult', 'Pose'], ['pose.body.kids', 'Pose'], ['pose.head_direction', 'Head direction'], ['expression.adult', 'Expression'], ['expression.kids', 'Expression'], ['background.studio', 'Studio background'], ['lighting.studio', 'Studio lighting'], ['camera.shot_size', 'Shot size'], ['camera.angle', 'Camera angle'], ['camera.lens_look', 'Lens'], ['camera.orientation', 'Orientation'], ['camera.aspect_ratio', 'Aspect ratio'], ['composition.negative_space', 'Negative space'], ['rendering.realism', 'Realism'], ['rendering.color_grade', 'Color grade'], ['rendering.resolution_intent', 'Output use']] }
 ]
 
@@ -682,13 +841,15 @@ function UtilityRail({ active, onChange, order }) {
 function App() {
   const [active, setActive] = useState('home'), [env, setEnv] = useState(DEFAULT_ENV)
   const [visited, setVisited] = useState(() => new Set(['home']))
+  const [upscaleHandoff, setUpscaleHandoff] = useState(null)
   useEffect(() => { fetch('/api/settings').then(response => response.json()).then(setEnv).catch(() => {}) }, [])
   useEffect(() => {
-    const titles = { home: 'Local Workshop', darkroom: 'Darkroom | Local Workshop', print: 'Print Studio | Local Workshop', 'print-enhance': 'Print Enhancer | Local Workshop', mockup: 'Mockup Bench | Local Workshop', 'model-studio': 'Model Studio | Local Workshop', 'prompt-builder': 'Prompt Builder | Local Workshop', upscaler: 'Image Upscaler | Local Workshop', anime: 'Anime Maker | Local Workshop', settings: 'Settings | Local Workshop' }
+    const titles = { home: 'Local Workshop', darkroom: 'Darkroom | Local Workshop', print: 'Print Studio | Local Workshop', 'design-lab': 'Design Lab | Local Workshop', 'print-enhance': 'Print Enhancer | Local Workshop', mockup: 'Mockup Bench | Local Workshop', 'model-studio': 'Model Studio | Local Workshop', 'prompt-builder': 'Prompt Builder | Local Workshop', upscaler: 'Image Upscaler | Local Workshop', anime: 'Anime Maker | Local Workshop', settings: 'Settings | Local Workshop' }
     document.title = titles[active]
   }, [active])
   const navigate = id => { setVisited(current => new Set(current).add(id)); setActive(id) }
-  return <div className="app-shell"><UtilityRail active={active} onChange={navigate} order={env.UTILITY_ORDER}/>{visited.has('home') && <div className="utility-panel" hidden={active !== 'home'}><Home onOpen={navigate} order={env.UTILITY_ORDER}/></div>}{visited.has('darkroom') && <div className="utility-panel" hidden={active !== 'darkroom'}><Darkroom/></div>}{visited.has('print') && <div className="utility-panel" hidden={active !== 'print'}><PrintStudio/></div>}{visited.has('print-enhance') && <div className="utility-panel" hidden={active !== 'print-enhance'}><PrintEnhancer/></div>}{visited.has('mockup') && <div className="utility-panel" hidden={active !== 'mockup'}><MockupBench/></div>}{visited.has('model-studio') && <div className="utility-panel" hidden={active !== 'model-studio'}><ModelStudio env={env}/></div>}{visited.has('prompt-builder') && <div className="utility-panel" hidden={active !== 'prompt-builder'}><PromptBuilder env={env}/></div>}{visited.has('upscaler') && <div className="utility-panel" hidden={active !== 'upscaler'}><ImageUpscaler/></div>}{visited.has('anime') && <div className="utility-panel" hidden={active !== 'anime'}><AnimeMaker/></div>}{visited.has('settings') && <div className="utility-panel" hidden={active !== 'settings'}><SettingsPanel env={env} onSaved={setEnv}/></div>}</div>
+  const sendToUpscaler = item => { setUpscaleHandoff(item); setVisited(current => new Set(current).add('upscaler')); setActive('upscaler') }
+  return <div className="app-shell"><UtilityRail active={active} onChange={navigate} order={env.UTILITY_ORDER}/>{visited.has('home') && <div className="utility-panel" hidden={active !== 'home'}><Home onOpen={navigate} order={env.UTILITY_ORDER}/></div>}{visited.has('darkroom') && <div className="utility-panel" hidden={active !== 'darkroom'}><Darkroom/></div>}{visited.has('print') && <div className="utility-panel" hidden={active !== 'print'}><PrintStudio/></div>}{visited.has('design-lab') && <div className="utility-panel" hidden={active !== 'design-lab'}><DesignLab onSendToUpscaler={sendToUpscaler}/></div>}{visited.has('print-enhance') && <div className="utility-panel" hidden={active !== 'print-enhance'}><PrintEnhancer/></div>}{visited.has('mockup') && <div className="utility-panel" hidden={active !== 'mockup'}><MockupBench/></div>}{visited.has('model-studio') && <div className="utility-panel" hidden={active !== 'model-studio'}><ModelStudio env={env}/></div>}{visited.has('prompt-builder') && <div className="utility-panel" hidden={active !== 'prompt-builder'}><PromptBuilder env={env}/></div>}{visited.has('upscaler') && <div className="utility-panel" hidden={active !== 'upscaler'}><ImageUpscaler handoff={upscaleHandoff} onHandoffConsumed={() => setUpscaleHandoff(null)}/></div>}{visited.has('anime') && <div className="utility-panel" hidden={active !== 'anime'}><AnimeMaker/></div>}{visited.has('settings') && <div className="utility-panel" hidden={active !== 'settings'}><SettingsPanel env={env} onSaved={setEnv}/></div>}</div>
 }
 
 const container = document.getElementById('root')

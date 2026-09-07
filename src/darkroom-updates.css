@@ -642,6 +642,22 @@ input[type="range"],
     display: block;
   }
 
+  .utility-rail {
+    max-width: 100vw;
+    overflow: hidden;
+  }
+
+  .utility-rail nav {
+    min-width: 0;
+    flex: 1;
+    overflow-x: auto;
+    scrollbar-gutter: stable;
+  }
+
+  .utility-rail .utility {
+    flex: 0 0 auto;
+  }
+
   .masthead-tools {
     width: auto;
     align-self: flex-end;
@@ -802,4 +818,87 @@ input[type="range"],
 @media (max-width: 800px) {
   .mockup-canvas-wrap { min-height: 300px; }
   .mockup-canvas-wrap canvas { max-height: none; width: 100%; }
+}
+
+.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.design-lab { max-width: 1500px; }
+.lab-progress { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 18px 0; border-bottom: 1px solid var(--line); color: #a9998f; font: 700 10px Consolas, monospace; letter-spacing: .1em; text-transform: uppercase; }
+.lab-progress span { padding: 5px 8px; border-bottom: 2px solid transparent; }
+.lab-progress span.active { color: var(--ink); border-color: var(--signal); }
+.lab-progress span.done { color: var(--signal); }
+.lab-progress i { color: var(--line); font-style: normal; }
+.lab-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; padding: 28px 0; }
+.lab-card { min-width: 0; padding: clamp(20px, 3vw, 30px); border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+.lab-card textarea { width: 100%; }
+.lab-card .section-head small { color: var(--muted); font-size: 11px; font-weight: 400; }
+.lab-idea, .lab-prompt { grid-column: 1 / -1; }
+.lab-output-row, .advanced-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 16px 0; }
+.reference-drop { min-height: 112px; display: grid; place-items: center; gap: 5px; margin-bottom: 14px; padding: 16px; border: 1px dashed var(--signal); border-radius: 8px; background: var(--paper); color: var(--ink); text-align: center; cursor: pointer; }
+.reference-drop:hover { background: var(--panel); }
+.reference-drop span { color: var(--muted); font-size: 10px; font-weight: 400; }
+.reference-thumb { width: 100%; max-height: 280px; object-fit: contain; margin: 0 0 18px; border: 1px solid var(--line); background: var(--panel); }
+.remove-reference { margin: -8px 0 16px; padding: 0; border: 0; border-bottom: 1px solid currentColor; background: transparent; color: var(--muted); font-size: 11px; }
+.remove-reference:hover { color: var(--signal); }
+.trait-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+.trait-grid label { min-height: 38px; display: flex; align-items: center; gap: 7px; margin: 0; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); font-size: 11px; cursor: pointer; }
+.trait-grid label:has(input:checked) { border-color: var(--signal); background: var(--panel); }
+.trait-grid input { accent-color: var(--signal); }
+.notice { margin: 10px 0 0; padding: 11px 12px; border-left: 3px solid var(--signal); background: var(--panel); color: var(--muted); font-size: 11px; line-height: 1.45; }
+.secondary-action, .next-actions > button, .result-actions button, .result-actions a, .refine-row button, .color-actions button { min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid var(--ink); border-radius: 6px; background: transparent; color: var(--ink); padding: 0 13px; text-decoration: none; font-size: 11px; font-weight: 700; cursor: pointer; }
+.secondary-action:hover:not(:disabled), .next-actions > button:hover:not(:disabled), .result-actions button:hover, .result-actions a:hover, .refine-row button:hover:not(:disabled), .color-actions button:hover { background: var(--panel); }
+.secondary-action:disabled, .next-actions button:disabled, .refine-row button:disabled { opacity: .42; cursor: not-allowed; }
+.lab-mode { grid-template-columns: repeat(2, 1fr); margin-bottom: 16px; }
+.advanced-grid { padding: 14px; background: var(--panel); }
+.advanced-grid input, .lab-settings input[type="number"] { width: 100%; border: 1px solid var(--line); border-radius: 6px; background: #fff; padding: 10px 11px; }
+.lab-results, .print-prep { margin: 0 0 28px; padding: clamp(20px, 3vw, 30px); border: 1px solid var(--ink); background: #fff; }
+.results-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+.results-head h2 { font: normal clamp(25px, 3vw, 38px)/1 Georgia, serif; }
+.results-head > span { color: var(--muted); font: 10px Consolas, monospace; }
+.result-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; padding-top: 20px; }
+.result-card { min-width: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--paper); }
+.result-card.selected { border-color: var(--signal); box-shadow: inset 0 0 0 2px var(--signal); }
+.result-image { position: relative; width: 100%; aspect-ratio: 4 / 5; display: block; overflow: hidden; padding: 0; border: 0; background: var(--panel); }
+.result-image img { width: 100%; height: 100%; object-fit: contain; }
+.result-image span { position: absolute; left: 8px; bottom: 8px; padding: 4px 6px; background: var(--ink); color: #fff; font: 9px Consolas, monospace; letter-spacing: .1em; }
+.result-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; padding: 9px; }
+.result-actions button, .result-actions a { min-height: 34px; padding: 0 7px; }
+.result-card details { border-top: 1px solid var(--line); padding: 10px; }
+.result-card summary { font-size: 10px; font-weight: 700; }
+.result-card details p { max-height: 120px; overflow: auto; color: var(--muted); font-size: 10px; line-height: 1.5; }
+.result-card code { display: block; color: var(--muted); font-size: 9px; overflow-wrap: anywhere; }
+.results-empty { min-height: 230px; display: grid; place-items: center; align-content: center; gap: 12px; color: var(--muted); text-align: center; }
+.results-empty p { max-width: 480px; margin: 0; font: 17px/1.5 Georgia, serif; }
+.next-actions { display: grid; grid-template-columns: minmax(180px, 1fr) repeat(2, auto); gap: 10px; align-items: end; margin-top: 22px; padding-top: 20px; border-top: 1px solid var(--line); }
+.next-actions h3, .next-actions p { margin: 0; }
+.next-actions h3 { font: normal 23px Georgia, serif; }
+.next-actions p { margin-top: 5px; color: var(--muted); font-size: 11px; }
+.refine-row { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.refine-row label { grid-column: 1 / -1; }
+.refine-row textarea { margin: 0; }
+.print-prep-grid { display: grid; grid-template-columns: minmax(320px, 1.2fr) minmax(260px, .8fr); gap: 24px; padding-top: 20px; }
+.garment-preview { min-height: 560px; display: grid; place-items: center; overflow: hidden; border: 1px solid var(--line); background-image: linear-gradient(135deg, rgba(255,255,255,.025) 25%, transparent 25%), linear-gradient(225deg, rgba(255,255,255,.025) 25%, transparent 25%); background-size: 24px 24px; }
+.garment-preview img { display: block; object-fit: contain; transition: width 160ms ease; }
+.garment-preview .print-small-chest { width: 28%; }
+.garment-preview .print-center-chest { width: 45%; }
+.garment-preview .print-large-front { width: 68%; }
+.garment-preview .print-oversized-back { width: 82%; }
+.print-prep-controls { display: flex; flex-direction: column; gap: 12px; }
+.color-actions { display: grid; grid-template-columns: repeat(3, 1fr) 42px; gap: 6px; }
+.color-actions button.active { background: var(--ink); color: #fff; }
+.color-actions input { width: 42px; height: 40px; padding: 2px; border: 1px solid var(--ink); border-radius: 6px; background: #fff; cursor: pointer; }
+
+@media (max-width: 980px) {
+  .lab-grid, .print-prep-grid { grid-template-columns: 1fr; }
+  .lab-idea, .lab-prompt { grid-column: 1; }
+  .result-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .next-actions { grid-template-columns: 1fr 1fr; }
+  .next-actions > div, .refine-row { grid-column: 1 / -1; }
+}
+
+@media (max-width: 600px) {
+  .lab-progress { gap: 3px; overflow-x: auto; justify-content: flex-start; }
+  .lab-progress span { padding-inline: 4px; }
+  .lab-output-row, .advanced-grid, .trait-grid, .result-grid, .next-actions { grid-template-columns: 1fr; }
+  .refine-row { grid-template-columns: 1fr; }
+  .garment-preview { min-height: 380px; }
 }

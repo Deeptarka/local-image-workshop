@@ -7,13 +7,15 @@ const ENV_PATH = path.resolve('.env')
 const PROMPT_DIRECTORY = path.resolve('prompts')
 const MODEL_PROMPT_YAML = path.join(PROMPT_DIRECTORY, 'clothing_brand_model_prompt_components.yaml')
 const MODEL_PROMPT_EXPANDER = path.join(PROMPT_DIRECTORY, '__prompt-expander.md')
+const DESIGN_DIRECTOR_PROMPT = path.join(PROMPT_DIRECTORY, 'dtf-design-director.md')
+const DESIGN_LAB_WORKFLOW = path.resolve('workflows/image_design_lab.api.json')
 const DEFAULT_PROMPT_PRESETS = 'animation-image.md,realistic-image.md,vector-print.md'
 const DEFAULTS = {
   COMFYUI_URL: 'http://127.0.0.1:8188',
   OLLAMA_URL: 'http://127.0.0.1:11434',
   OLLAMA_MODEL: 'qwen3.5:0.8b',
   PROMPT_PRESETS: DEFAULT_PROMPT_PRESETS,
-  UTILITY_ORDER: 'darkroom,print,print-enhance,mockup,model-studio,prompt-builder,upscaler,anime'
+  UTILITY_ORDER: 'darkroom,print,design-lab,print-enhance,mockup,model-studio,prompt-builder,upscaler,anime'
 }
 const ALLOWED_KEYS = Object.keys(DEFAULTS)
 let runtimeSettings = { ...DEFAULTS }
@@ -51,7 +53,7 @@ async function saveSettings(next) {
   const clean = { ...DEFAULTS }
   for (const key of ALLOWED_KEYS) if (typeof next[key] === 'string' && next[key].trim()) clean[key] = next[key].trim()
   new URL(clean.COMFYUI_URL); new URL(clean.OLLAMA_URL)
-  const validUtilities = ['darkroom', 'print', 'print-enhance', 'mockup', 'model-studio', 'prompt-builder', 'upscaler', 'anime']
+  const validUtilities = ['darkroom', 'print', 'design-lab', 'print-enhance', 'mockup', 'model-studio', 'prompt-builder', 'upscaler', 'anime']
   const requestedOrder = clean.UTILITY_ORDER.split(',').map(item => item.trim()).filter(item => validUtilities.includes(item))
   clean.UTILITY_ORDER = [...new Set([...requestedOrder, ...validUtilities])].join(',')
   const contents = `${ALLOWED_KEYS.map(key => `${key}=${JSON.stringify(clean[key])}`).join('\n')}\n`
@@ -186,6 +188,38 @@ function localTransport() {
         if (!prompt) throw new Error('Ollama returned an empty prompt.')
         return sendJson(res, 200, { prompt })
       } catch (error) { return sendJson(res, 502, { error: `Could not generate with Ollama: ${error.message}` }) }
+    })
+
+    server.middlewares.use('/api/design-lab/workflow', async (req, res) => {
+      if (req.method !== 'GET') return sendJson(res, 405, { error: 'Method not allowed' })
+      try { return sendJson(res, 200, JSON.parse(await readFile(DESIGN_LAB_WORKFLOW, 'utf8'))) }
+      catch (error) { return sendJson(res, 500, { error: `Design Lab workflow could not be loaded: ${error.message}` }) }
+    })
+
+    server.middlewares.use('/api/design-lab/direct', async (req, res) => {
+      if (req.method !== 'POST') return sendJson(res, 405, { error: 'Method not allowed' })
+      try {
+        const payload = JSON.parse((await readBody(req)).toString('utf8') || '{}')
+        const instruction = typeof payload.instruction === 'string' ? payload.instruction.trim() : ''
+        if (!instruction) return sendJson(res, 400, { error: 'Describe the Design Lab task first.' })
+        if (instruction.length > 16000) return sendJson(res, 400, { error: 'The Design Lab request is too long. Remove some text and try again.' })
+        const systemPrompt = (await readFile(DESIGN_DIRECTOR_PROMPT, 'utf8')).trim()
+        const userMessage = { role: 'user', content: instruction }
+        if (typeof payload.image === 'string' && payload.image.includes(',')) userMessage.images = [payload.image.split(',')[1]]
+        const upstream = await fetch(`${runtimeSettings.OLLAMA_URL.replace(/\/$/, '')}/api/chat`, {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ model: runtimeSettings.OLLAMA_MODEL, stream: false, think: false, format: payload.json ? 'json' : undefined, messages: [{ role: 'system', content: systemPrompt }, userMessage], options: { temperature: payload.temperature ?? 0.55 } }),
+          signal: AbortSignal.timeout(180000)
+        })
+        const result = await upstream.json().catch(() => ({}))
+        if (!upstream.ok) throw new Error(result.error || `Ollama returned HTTP ${upstream.status}`)
+        const content = result.message?.content?.trim()
+        if (!content) throw new Error('Ollama returned an empty response.')
+        return sendJson(res, 200, { content })
+      } catch (error) {
+        const hint = /image|vision|multimodal/i.test(error.message) ? ' The configured Ollama model may not support vision; select a vision-capable local model in Settings.' : ''
+        return sendJson(res, 502, { error: `Design Lab could not use Ollama: ${error.message}.${hint}` })
+      }
     })
 
     server.middlewares.use('/api/prompt', async (req, res) => {

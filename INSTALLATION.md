@@ -73,6 +73,10 @@ Optional compatible LoRAs belong in `models/loras`.
 
 Print Enhancer reuses this exact three-file set for single-reference image editing. It does not require another diffusion model, encoder, VAE, or custom node. Update ComfyUI if the core `ReferenceLatent` or `GetImageSize` nodes are unavailable.
 
+Design Lab also reuses this exact three-file set. Its generation graph is `workflows/image_design_lab.api.json`. Optional reference analysis is performed by Ollama before generation, so reference images are not automatically passed into ComfyUI conditioning.
+
+For visual-reference analysis, configure a local Ollama model that supports image input. If the configured model is text-only, Design Lab reports that limitation; idea-only concept development remains available. No multi-gigabyte model is downloaded automatically.
+
 The Qwen text encoder can be shared with Darkroom.
 
 ### Image Upscaler
@@ -121,6 +125,15 @@ ollama serve
 ```
 
 Confirm that the model shown in Settings appears in `ollama list`.
+
+If Design Lab accepts text but fails when a reference is attached, the configured model is likely not vision-capable. Select an installed vision model in Settings and retry. Reference files remain local and are sent only to the configured loopback Ollama service.
+
+### Design Lab Out of Memory
+
+- Use Draft or Standard quality and begin with the default 832 × 1056 frame.
+- Generate one variation at a time.
+- Close other GPU-heavy ComfyUI jobs before retrying.
+- Upscale the selected result afterward instead of generating immediately at final print dimensions.
 
 ### A Workflow Is Rejected
 
